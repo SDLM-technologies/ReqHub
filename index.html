@@ -413,9 +413,12 @@
             } catch(e) { console.error(e); }
         }
 
-        let mainSearchTimer = null;
+        let mainDebounceTimer = null;
+        let mainThrottleTimer = null;
         let mainLastSearch = '';
-        let plSearchTimer = null;
+        
+        let plDebounceTimer = null;
+        let plThrottleTimer = null;
         let plLastSearch = '';
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -425,18 +428,28 @@
                     document.getElementById('resultsList').innerHTML = '';
                     document.getElementById('playlistsSection').style.display = 'none';
                     mainLastSearch = '';
+                    if (mainDebounceTimer) clearTimeout(mainDebounceTimer);
+                    if (mainThrottleTimer) { clearTimeout(mainThrottleTimer); mainThrottleTimer = null; }
                     return;
                 }
                 
-                if (!mainSearchTimer) {
-                    mainSearchTimer = setTimeout(() => {
-                        const currentVal = document.getElementById('searchInput').value.trim();
-                        if (currentVal !== '' && currentVal !== mainLastSearch) {
-                            mainLastSearch = currentVal;
-                            searchMusic();
-                        }
-                        mainSearchTimer = null;
-                    }, 500);
+                const triggerSearch = () => {
+                    if (mainDebounceTimer) clearTimeout(mainDebounceTimer);
+                    if (mainThrottleTimer) clearTimeout(mainThrottleTimer);
+                    mainThrottleTimer = null;
+                    
+                    const currentVal = document.getElementById('searchInput').value.trim();
+                    if (currentVal !== '' && currentVal !== mainLastSearch) {
+                        mainLastSearch = currentVal;
+                        searchMusic();
+                    }
+                };
+
+                if (mainDebounceTimer) clearTimeout(mainDebounceTimer);
+                mainDebounceTimer = setTimeout(triggerSearch, 1000);
+
+                if (!mainThrottleTimer) {
+                    mainThrottleTimer = setTimeout(triggerSearch, 3000);
                 }
             });
 
@@ -445,18 +458,28 @@
                 if (val === '') {
                     document.getElementById('playlistSearchResultsList').innerHTML = '';
                     plLastSearch = '';
+                    if (plDebounceTimer) clearTimeout(plDebounceTimer);
+                    if (plThrottleTimer) { clearTimeout(plThrottleTimer); plThrottleTimer = null; }
                     return;
                 }
 
-                if (!plSearchTimer) {
-                    plSearchTimer = setTimeout(() => {
-                        const currentVal = document.getElementById('playlistSearchInput').value.trim();
-                        if (currentVal !== '' && currentVal !== plLastSearch) {
-                            plLastSearch = currentVal;
-                            searchMusicForPlaylist();
-                        }
-                        plSearchTimer = null;
-                    }, 500);
+                const triggerSearch = () => {
+                    if (plDebounceTimer) clearTimeout(plDebounceTimer);
+                    if (plThrottleTimer) clearTimeout(plThrottleTimer);
+                    plThrottleTimer = null;
+                    
+                    const currentVal = document.getElementById('playlistSearchInput').value.trim();
+                    if (currentVal !== '' && currentVal !== plLastSearch) {
+                        plLastSearch = currentVal;
+                        searchMusicForPlaylist();
+                    }
+                };
+
+                if (plDebounceTimer) clearTimeout(plDebounceTimer);
+                plDebounceTimer = setTimeout(triggerSearch, 1000);
+
+                if (!plThrottleTimer) {
+                    plThrottleTimer = setTimeout(triggerSearch, 3000);
                 }
             });
         });
