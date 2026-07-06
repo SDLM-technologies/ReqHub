@@ -26,6 +26,7 @@ type Config struct {
 	NaviUrl       string `json:"naviUrl"`
 	NaviUser      string `json:"naviUser"`
 	NaviPass      string `json:"naviPass"`
+	NaviKey       string `json:"naviKey"`
 	Language      string `json:"language"`
 }
 

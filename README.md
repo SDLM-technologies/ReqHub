@@ -15,7 +15,8 @@ The application allows you to search for a specific track, trigger its download 
 - **Automated Addition (Webhook):** As soon as Lidarr finishes downloading, ReqHub captures the file and injects it into the playlists you previously checked.
 - **Built-in Playlist Manager:** Dedicated interface to create, read, modify (add/remove tracks via UI), and delete your local `.m3u` playlists.
 - **Ultra Lightweight:** Backend written in **pure Go** (no external dependencies, `net/http` only). Frontend in **native HTML/CSS/JS**.
-- **Dark Mode:** Elegant interface featuring enterprise colors (Purple and Yellow).
+- **Modern & Responsive UI:** Fully redesigned interface that dynamically adapts to your device (desktop or smartphone). Includes a brand new visual identity and smooth modal popups for adding tracks.
+- **Auto Theme Support:** Automatically switches between Light and Dark mode based on your device's system preferences.
 - **NAS Optimized (TrueNAS, Unraid, etc.):** CPU/RAM consumption close to zero, multi-stage Docker build resulting in a tiny Alpine/Scratch final image.
 
 ---
@@ -85,7 +86,7 @@ services:
      > [!IMPORTANT]
      > These paths must be **IDENTICAL** to the paths Lidarr and Navidrome use internally! Your `docker-compose.yml` volume must map to these exact same internal paths so that ReqHub can generate correct relative links.
      > **Example:** If Lidarr downloads to `/Navidrome/media/music/...`, you MUST write `/Navidrome/media/music` here, and your `docker-compose.yml` volume must map to this exact same internal path.
-   - **Navidrome URL / User / Password (Optional):** 
+   - **Navidrome URL / User / Password / API Key (Optional):** 
      - **Why connect it?** If provided, ReqHub will use the Subsonic API to automatically delete playlists from Navidrome's internal database when you delete them from ReqHub's UI.
      - **Why skip it?** It is **NOT** mandatory for ReqHub to work. In fact, leaving these fields empty adds a layer of security: if you accidentally delete a playlist in ReqHub, Navidrome will still keep a safe copy of it in its internal database!
 4. Click **Save**.

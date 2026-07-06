@@ -55,7 +55,7 @@
         .search-container {
             width: 100%; max-width: 1000px; display: flex; gap: 10px; margin-bottom: 20px;
         }
-        input[type="text"], select {
+        input[type="text"], input[type="password"], select {
             flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text);
             font-size: 1rem;
         }
@@ -302,6 +302,8 @@
             <input type="text" id="naviUser" placeholder="admin">
             <label data-i18n="navi_pass">Navidrome Password (Optional)</label>
             <input type="password" id="naviPass" placeholder="password">
+            <label data-i18n="navi_key">Navidrome API Key / Token (Optional)</label>
+            <input type="password" id="naviKey" placeholder="token">
             <label data-i18n="language">Language</label>
             <select id="langSelect">
                 <option value="en">English</option>
@@ -727,6 +729,7 @@
                 document.getElementById('naviUrl').value = conf.naviUrl || '';
                 document.getElementById('naviUser').value = conf.naviUser || '';
                 document.getElementById('naviPass').value = conf.naviPass || '';
+                document.getElementById('naviKey').value = conf.naviKey || '';
                 document.getElementById('langSelect').value = conf.language || 'en';
             } catch(e) {}
             document.getElementById('settingsModal').style.display = 'flex';
@@ -745,6 +748,7 @@
                 naviUrl: document.getElementById('naviUrl').value,
                 naviUser: document.getElementById('naviUser').value,
                 naviPass: document.getElementById('naviPass').value,
+                naviKey: document.getElementById('naviKey').value,
                 language: document.getElementById('langSelect').value
             };
             await fetch('/api/settings', {
