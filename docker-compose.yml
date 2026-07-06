@@ -2,18 +2,18 @@ version: '3.8'
 
 services:
   reqhub:
-    image: ghcr.io/VOTRE_PSEUDO_GITHUB/NOM_DU_DEPOT:latest # ⚠️ REMPLACEZ par votre pseudo et le nom du dépôt (tout en minuscules)
+    image: ghcr.io/sdlm-technologies/reqhub:latest
     container_name: sdlm-reqhub
     ports:
-      - "8080:8080" # Port d'accès à l'interface web
+      - "8080:8080" # Web interface access port
     environment:
       - TZ=Europe/Paris
     volumes:
-      # /!\ Le chemin de gauche ET de droite doivent être IDENTIQUES.
-      # /!\ Ex: - /mnt/pool/music:/mnt/pool/music:rw
-      # /!\ Cela doit correspondre exactement au chemin que Lidarr connait.
-      - /mnt/votre_pool/dossier_musique:/mnt/votre_pool/dossier_musique:rw
+      # /!\ The left AND right paths MUST BE IDENTICAL.
+      # /!\ E.g. - /mnt/pool/music:/mnt/pool/music:rw
+      # /!\ This must perfectly match the path that Lidarr knows.
+      - /mnt/your_pool/music_folder:/mnt/your_pool/music_folder:rw
       
-      # Dossier local pour sauvegarder la configuration (URL, Clé API, pending tracks)
+      # Local folder to save the configuration (URL, API Key, pending tracks)
       - ./data:/app/data
     restart: unless-stopped

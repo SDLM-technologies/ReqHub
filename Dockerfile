@@ -3,21 +3,21 @@ FROM golang:1.21-alpine AS builder
 
 WORKDIR /app
 COPY main.go .
-# Compilation avec cgo désactivé, ciblant linux/amd64 (ou arm64 selon votre TrueNAS)
+# Compile with cgo disabled, targeting linux/amd64 (or arm64 depending on your TrueNAS)
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o reqhub main.go
 
-# Stage 2: Image finale ultra-légère
+# Stage 2: Ultra-lightweight final image
 FROM alpine:latest
 
-# Installation des certificats racine pour les requêtes HTTPS vers iTunes API
+# Install root certificates for HTTPS requests to iTunes API
 RUN apk --no-cache add ca-certificates tzdata
 
 WORKDIR /app
 
-# Création du dossier pour les données persistantes
+# Create folder for persistent data
 RUN mkdir -p /app/data
 
-# Copie du binaire et du fichier HTML
+# Copy the binary and the HTML file
 COPY --from=builder /app/reqhub .
 COPY index.html .
 

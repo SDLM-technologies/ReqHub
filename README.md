@@ -41,7 +41,7 @@ version: '3.8'
 
 services:
   reqhub:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME:latest # ⚠️ REPLACE with your username and repo name
+    image: ghcr.io/sdlm-technologies/reqhub:latest
     container_name: sdlm-reqhub
     ports:
       - "8080:8080"

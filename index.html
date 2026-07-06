@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -42,11 +42,11 @@
         .search-container {
             width: 100%; max-width: 600px; display: flex; gap: 10px; margin-bottom: 20px;
         }
-        input[type="text"] {
+        input[type="text"], select {
             flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #222; color: white;
             font-size: 1rem;
         }
-        input[type="text"]:focus { outline: none; border-color: var(--primary); }
+        input[type="text"]:focus, select:focus { outline: none; border-color: var(--primary); }
         button {
             padding: 12px 20px; border-radius: 8px; border: none; background: var(--primary); color: white;
             font-weight: bold; cursor: pointer; transition: 0.2s;
@@ -81,7 +81,7 @@
             display: flex; flex-direction: column; gap: 15px;
         }
         .modal h2 { margin: 0 0 10px 0; color: var(--secondary); }
-        .modal input { width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        .modal input, .modal select { width: 100%; box-sizing: border-box; margin-bottom: 10px; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
         .toast {
@@ -90,7 +90,7 @@
             display: none; z-index: 1000;
         }
 
-        /* Nouveaux styles pour le gestionnaire de playlists */
+        /* Playlist Manager specific styles */
         .view { display: none; width: 100%; max-width: 600px; flex-direction: column; align-items: center; }
         .view.active { display: flex; }
         
@@ -133,56 +133,56 @@
     <header>
         <h1><span style="color: var(--secondary);">SDLM</span> ReqHub</h1>
         <div class="header-actions">
-            <button class="btn-outline" style="padding: 8px 12px;" onclick="openPlaylistsManager()">Gérer les Playlists</button>
+            <button class="btn-outline" style="padding: 8px 12px;" onclick="openPlaylistsManager()" data-i18n="manage_playlists">Manage Playlists</button>
             <button class="settings-btn" onclick="openSettings()">⚙️</button>
         </div>
     </header>
 
-    <!-- VUE PRINCIPALE -->
+    <!-- MAIN VIEW -->
     <div id="mainView" class="view active">
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Chercher une musique...">
-            <button onclick="searchMusic()">Rechercher</button>
+            <input type="text" id="searchInput" data-i18n="search_placeholder" placeholder="Search for music...">
+            <button onclick="searchMusic()" data-i18n="search_btn">Search</button>
         </div>
 
         <div class="results" id="resultsList"></div>
 
         <div class="playlists-section" id="playlistsSection">
-            <h3 style="margin-top:0">Ajouter aux playlists</h3>
+            <h3 style="margin-top:0" data-i18n="add_to_playlists">Add to playlists</h3>
             <div class="playlists-list" id="playlistsList"></div>
-            <button id="addBtn" style="margin-top: 15px; width: 100%; background: var(--secondary); color: black;" onclick="addMusic()">Ajouter</button>
+            <button id="addBtn" style="margin-top: 15px; width: 100%; background: var(--secondary); color: black;" onclick="addMusic()" data-i18n="add_btn">Add</button>
         </div>
     </div>
 
-    <!-- VUE GESTIONNAIRE DE PLAYLISTS -->
+    <!-- PLAYLIST MANAGER VIEW -->
     <div id="playlistManagerView" class="view">
         <div style="width:100%; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-            <button class="btn-outline" onclick="switchView('mainView')">← Retour</button>
-            <h2 style="margin:0; color: var(--primary);">Mes Playlists</h2>
-            <div style="width: 80px;"></div> <!-- placeholder pour centrer -->
+            <button class="btn-outline" onclick="switchView('mainView')" data-i18n="back_btn">← Back</button>
+            <h2 style="margin:0; color: var(--primary);" data-i18n="my_playlists">My Playlists</h2>
+            <div style="width: 80px;"></div> <!-- placeholder to center title -->
         </div>
         <div id="managerPlaylistsList" style="width: 100%;"></div>
         <div class="create-playlist-container">
-            <input type="text" id="newPlaylistName" placeholder="Nom de la nouvelle playlist...">
-            <button onclick="createPlaylist()">Créer</button>
+            <input type="text" id="newPlaylistName" data-i18n="new_playlist_placeholder" placeholder="New playlist name...">
+            <button onclick="createPlaylist()" data-i18n="create_btn">Create</button>
         </div>
     </div>
 
-    <!-- VUE DÉTAIL D'UNE PLAYLIST -->
+    <!-- PLAYLIST DETAIL VIEW -->
     <div id="playlistDetailView" class="view">
         <div class="playlist-header">
-            <button class="btn-outline" onclick="openPlaylistsManager()">← Retour</button>
+            <button class="btn-outline" onclick="openPlaylistsManager()" data-i18n="back_btn">← Back</button>
             <h2 id="detailPlaylistTitle" style="margin:0; color: var(--secondary); word-break: break-all; text-align:center; flex:1; padding: 0 10px;"></h2>
-            <button id="deletePlaylistBtn" class="btn-danger" style="display: none;" onclick="deleteCurrentPlaylist()">Supprimer</button>
+            <button id="deletePlaylistBtn" class="btn-danger" style="display: none;" onclick="deleteCurrentPlaylist()" data-i18n="delete_btn">Delete</button>
         </div>
         <div class="playlist-actions">
-            <button id="toggleEditBtn" class="btn-secondary" style="flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s;" onclick="toggleEditMode()">Gérer la playlist</button>
+            <button id="toggleEditBtn" class="btn-secondary" style="flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s;" onclick="toggleEditMode()" data-i18n="manage_playlist_btn">Manage playlist</button>
         </div>
         
         <div id="playlistSearchSection" style="display: none; width: 100%; margin-bottom: 20px;">
             <div class="search-container">
-                <input type="text" id="playlistSearchInput" placeholder="Chercher une musique à ajouter...">
-                <button onclick="searchMusicForPlaylist()">Rechercher</button>
+                <input type="text" id="playlistSearchInput" data-i18n="search_add_placeholder" placeholder="Search for music to add...">
+                <button onclick="searchMusicForPlaylist()" data-i18n="search_btn">Search</button>
             </div>
             <div class="results" id="playlistSearchResultsList"></div>
         </div>
@@ -190,19 +190,25 @@
         <div id="playlistTracksList" style="width: 100%;"></div>
     </div>
 
-    <!-- Modal Settings -->
+    <!-- Settings Modal -->
     <div class="modal" id="settingsModal">
         <div class="modal-content">
-            <h2>Paramètres</h2>
-            <label>URL Lidarr</label>
+            <h2 data-i18n="settings_title">Settings</h2>
+            <label data-i18n="lidarr_url">Lidarr URL</label>
             <input type="text" id="lidarrUrl" placeholder="http://192.168.x.x:8686">
-            <label>Clé API Lidarr</label>
+            <label data-i18n="lidarr_key">Lidarr API Key</label>
             <input type="text" id="lidarrKey" placeholder="xxxxxxxxxxxxxxx">
-            <label>Dossier Musique NAS (Absolu)</label>
+            <label data-i18n="music_path">NAS Music Folder (Absolute)</label>
             <input type="text" id="musicPath" placeholder="/mnt/pool/media/music">
+            <label data-i18n="language">Language</label>
+            <select id="langSelect">
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+            </select>
             <div class="modal-actions">
-                <button style="background: #555;" onclick="closeSettings()">Annuler</button>
-                <button onclick="saveSettings()">Enregistrer</button>
+                <button style="background: #555;" onclick="closeSettings()" data-i18n="cancel_btn">Cancel</button>
+                <button onclick="saveSettings()" data-i18n="save_btn">Save</button>
             </div>
         </div>
     </div>
@@ -210,9 +216,170 @@
     <div class="toast" id="toast"></div>
 
     <script>
+        const translations = {
+            en: {
+                manage_playlists: "Manage Playlists",
+                search_placeholder: "Search for music...",
+                search_btn: "Search",
+                add_to_playlists: "Add to playlists",
+                add_btn: "Add",
+                back_btn: "← Back",
+                my_playlists: "My Playlists",
+                new_playlist_placeholder: "New playlist name...",
+                create_btn: "Create",
+                delete_btn: "Delete",
+                manage_playlist_btn: "Manage playlist",
+                done_editing_btn: "Done editing",
+                search_add_placeholder: "Search for music to add...",
+                settings_title: "Settings",
+                lidarr_url: "Lidarr URL",
+                lidarr_key: "Lidarr API Key",
+                music_path: "NAS Music Folder (Absolute)",
+                language: "Language",
+                cancel_btn: "Cancel",
+                save_btn: "Save",
+                no_results: "No results.",
+                no_results_itunes: "No results found on iTunes.",
+                no_playlists: "No playlist found. Check your settings.",
+                no_playlists_manager: "No playlist found.",
+                empty_playlist: "The playlist is empty.",
+                error_reading: "Error reading.",
+                added_success: "Added successfully!",
+                added_pending: "Missing track, Lidarr download requested...",
+                error_adding: "Error while adding",
+                server_error: "Server error",
+                conn_error: "Server connection error",
+                checking: "Checking...",
+                processing: "Processing...",
+                save_changes: "Save changes",
+                settings_saved: "Settings saved",
+                playlist_created: "Playlist created!",
+                track_removed: "Track removed",
+                error_deleting: "Error while deleting",
+                playlist_deleted: "Playlist deleted",
+                confirm_remove: "Are you sure you want to remove this track from the playlist?",
+                confirm_delete: "Are you sure you want to permanently delete this playlist (the .m3u file)?",
+                remove_tooltip: "Remove track"
+            },
+            fr: {
+                manage_playlists: "Gérer les Playlists",
+                search_placeholder: "Chercher une musique...",
+                search_btn: "Rechercher",
+                add_to_playlists: "Ajouter aux playlists",
+                add_btn: "Ajouter",
+                back_btn: "← Retour",
+                my_playlists: "Mes Playlists",
+                new_playlist_placeholder: "Nom de la nouvelle playlist...",
+                create_btn: "Créer",
+                delete_btn: "Supprimer",
+                manage_playlist_btn: "Gérer la playlist",
+                done_editing_btn: "Terminer la gestion",
+                search_add_placeholder: "Chercher une musique à ajouter...",
+                settings_title: "Paramètres",
+                lidarr_url: "URL Lidarr",
+                lidarr_key: "Clé API Lidarr",
+                music_path: "Dossier Musique NAS (Absolu)",
+                language: "Langue",
+                cancel_btn: "Annuler",
+                save_btn: "Enregistrer",
+                no_results: "Aucun résultat.",
+                no_results_itunes: "Aucun résultat trouvé sur iTunes.",
+                no_playlists: "Aucune playlist trouvée. Vérifiez vos paramètres.",
+                no_playlists_manager: "Aucune playlist trouvée.",
+                empty_playlist: "La playlist est vide.",
+                error_reading: "Erreur lors de la lecture.",
+                added_success: "Ajouté avec succès !",
+                added_pending: "Piste manquante, téléchargement Lidarr demandé...",
+                error_adding: "Erreur lors de l'ajout",
+                server_error: "Erreur serveur",
+                conn_error: "Erreur de connexion au serveur",
+                checking: "Vérification...",
+                processing: "Traitement...",
+                save_changes: "Sauvegarder les modifications",
+                settings_saved: "Paramètres sauvegardés",
+                playlist_created: "Playlist créée !",
+                track_removed: "Musique retirée",
+                error_deleting: "Erreur lors de la suppression",
+                playlist_deleted: "Playlist supprimée",
+                confirm_remove: "Voulez-vous vraiment retirer cette musique de la playlist ?",
+                confirm_delete: "Voulez-vous vraiment supprimer définitivement cette playlist (le fichier .m3u) ?",
+                remove_tooltip: "Supprimer la musique"
+            },
+            de: {
+                manage_playlists: "Playlists verwalten",
+                search_placeholder: "Nach Musik suchen...",
+                search_btn: "Suchen",
+                add_to_playlists: "Zu Playlists hinzufügen",
+                add_btn: "Hinzufügen",
+                back_btn: "← Zurück",
+                my_playlists: "Meine Playlists",
+                new_playlist_placeholder: "Neuer Playlist-Name...",
+                create_btn: "Erstellen",
+                delete_btn: "Löschen",
+                manage_playlist_btn: "Playlist verwalten",
+                done_editing_btn: "Bearbeitung beenden",
+                search_add_placeholder: "Nach Musik zum Hinzufügen suchen...",
+                settings_title: "Einstellungen",
+                lidarr_url: "Lidarr URL",
+                lidarr_key: "Lidarr API Schlüssel",
+                music_path: "NAS Musikordner (Absolut)",
+                language: "Sprache",
+                cancel_btn: "Abbrechen",
+                save_btn: "Speichern",
+                no_results: "Keine Ergebnisse.",
+                no_results_itunes: "Keine Ergebnisse auf iTunes gefunden.",
+                no_playlists: "Keine Playlists gefunden. Überprüfen Sie Ihre Einstellungen.",
+                no_playlists_manager: "Keine Playlists gefunden.",
+                empty_playlist: "Die Playlist ist leer.",
+                error_reading: "Fehler beim Lesen.",
+                added_success: "Erfolgreich hinzugefügt!",
+                added_pending: "Fehlender Titel, Lidarr-Download angefordert...",
+                error_adding: "Fehler beim Hinzufügen",
+                server_error: "Serverfehler",
+                conn_error: "Serververbindungsfehler",
+                checking: "Wird überprüft...",
+                processing: "Wird bearbeitet...",
+                save_changes: "Änderungen speichern",
+                settings_saved: "Einstellungen gespeichert",
+                playlist_created: "Playlist erstellt!",
+                track_removed: "Titel entfernt",
+                error_deleting: "Fehler beim Löschen",
+                playlist_deleted: "Playlist gelöscht",
+                confirm_remove: "Möchten Sie diesen Titel wirklich aus der Playlist entfernen?",
+                confirm_delete: "Möchten Sie diese Playlist (die .m3u Datei) wirklich endgültig löschen?",
+                remove_tooltip: "Titel entfernen"
+            }
+        };
+
+        let currentLang = 'en';
+
+        function t(key) {
+            return translations[currentLang][key] || key;
+        }
+
+        function applyTranslations() {
+            document.documentElement.lang = currentLang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+                    el.placeholder = t(key);
+                } else {
+                    el.textContent = t(key);
+                }
+            });
+        }
+
         let selectedTrack = null;
 
-        document.addEventListener('DOMContentLoaded', loadPlaylists);
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('/api/settings');
+                const conf = await res.json();
+                if(conf.language) currentLang = conf.language;
+            } catch(e) {}
+            applyTranslations();
+            loadPlaylists();
+        });
 
         function showToast(msg, color = 'var(--primary)') {
             const t = document.getElementById('toast');
@@ -229,12 +396,11 @@
                 const container = document.getElementById('playlistsList');
                 container.innerHTML = '';
                 if(list.length === 0) {
-                    container.innerHTML = '<span style="color:#aaa;">Aucune playlist trouvée. Vérifiez vos paramètres.</span>';
+                    container.innerHTML = `<span style="color:#aaa;">${t('no_playlists')}</span>`;
                 }
                 list.forEach(p => {
                     const lbl = document.createElement('label');
                     lbl.className = 'playlist-label';
-                    // Retire l'extension et affiche le nom
                     const name = p.replace(/\.m3u$/i, '');
                     lbl.innerHTML = `<input type="checkbox" value="${p}"> ${name}`;
                     container.appendChild(lbl);
@@ -254,32 +420,31 @@
             selectedTrack = null;
 
             if(!tracks || tracks.length === 0) {
-                resultsDiv.innerHTML = '<span style="color:#aaa;">Aucun résultat trouvé sur iTunes.</span>';
+                resultsDiv.innerHTML = `<span style="color:#aaa;">${t('no_results_itunes')}</span>`;
                 return;
             }
 
-            tracks.forEach(t => {
+            tracks.forEach(tr => {
                 const card = document.createElement('div');
                 card.className = 'track-card';
                 card.innerHTML = `
-                    <img src="${t.cover}" class="track-cover">
+                    <img src="${tr.cover}" class="track-cover">
                     <div class="track-info">
-                        <div class="track-title">${t.title}</div>
-                        <div class="track-artist">${t.artist} - ${t.album}</div>
+                        <div class="track-title">${tr.title}</div>
+                        <div class="track-artist">${tr.artist} - ${tr.album}</div>
                     </div>
                 `;
                 card.onclick = async () => {
                     document.querySelectorAll('.track-card').forEach(c => c.classList.remove('selected'));
                     card.classList.add('selected');
-                    selectedTrack = t;
+                    selectedTrack = tr;
                     document.getElementById('playlistsSection').style.display = 'block';
                     
-                    // Réinitialiser les cases
                     document.querySelectorAll('#playlistsList input[type="checkbox"]').forEach(c => c.checked = false);
                     
                     const btn = document.getElementById('addBtn');
                     btn.disabled = true;
-                    btn.textContent = "Vérification...";
+                    btn.textContent = t('checking');
                     
                     try {
                         const res = await fetch('/api/track_status', {
@@ -293,18 +458,17 @@
                         });
                         const existingPlaylists = await res.json();
                         existingPlaylists.forEach(p => {
-                            // Échapper les antislashs pour le sélecteur CSS
                             const pSafe = p.replace(/\\/g, '\\\\');
                             const cb = document.querySelector(`#playlistsList input[value="${pSafe}"]`);
                             if (cb) cb.checked = true;
                         });
                         if (existingPlaylists.length > 0) {
-                            btn.textContent = "Sauvegarder les modifications";
+                            btn.textContent = t('save_changes');
                         } else {
-                            btn.textContent = "Ajouter";
+                            btn.textContent = t('add_btn');
                         }
                     } catch(e) {
-                        btn.textContent = "Ajouter / Sauvegarder";
+                        btn.textContent = t('add_btn');
                     } finally {
                         btn.disabled = false;
                     }
@@ -318,13 +482,10 @@
             const checkboxes = document.querySelectorAll('#playlistsList input[type="checkbox"]');
             const selectedPlaylists = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
             
-            // On enlève la restriction qui empêchait la sauvegarde si 0 playlist cochée
-            // Car l'utilisateur peut vouloir TOUT décocher pour supprimer la musique.
-
             const btn = document.getElementById('addBtn');
             const originalText = btn.textContent;
             btn.disabled = true;
-            btn.textContent = "Traitement...";
+            btn.textContent = t('processing');
 
             try {
                 const res = await fetch('/api/add', {
@@ -341,12 +502,13 @@
                 try { data = await res.json(); } catch(e) {}
                 
                 if(res.ok) {
-                    showToast(data.message || "Ajouté avec succès !", data.status === 'added' ? 'var(--success)' : 'var(--secondary)');
+                    const msg = data.status === 'pending' ? t('added_pending') : t('added_success');
+                    showToast(msg, data.status === 'added' ? 'var(--success)' : 'var(--secondary)');
                 } else {
-                    showToast(data.message || "Erreur lors de l'ajout", "var(--error)");
+                    showToast(t('error_adding'), "var(--error)");
                 }
             } catch(e) {
-                showToast("Erreur de connexion au serveur", "var(--error)");
+                showToast(t('conn_error'), "var(--error)");
             } finally {
                 btn.disabled = false;
                 btn.textContent = originalText;
@@ -360,6 +522,7 @@
                 document.getElementById('lidarrUrl').value = conf.lidarrUrl || '';
                 document.getElementById('lidarrKey').value = conf.lidarrKey || '';
                 document.getElementById('musicPath').value = conf.musicPath || '';
+                document.getElementById('langSelect').value = conf.language || 'en';
             } catch(e) {}
             document.getElementById('settingsModal').style.display = 'flex';
         }
@@ -372,19 +535,21 @@
             const conf = {
                 lidarrUrl: document.getElementById('lidarrUrl').value,
                 lidarrKey: document.getElementById('lidarrKey').value,
-                musicPath: document.getElementById('musicPath').value
+                musicPath: document.getElementById('musicPath').value,
+                language: document.getElementById('langSelect').value
             };
             await fetch('/api/settings', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(conf)
             });
+            currentLang = conf.language;
+            applyTranslations();
             closeSettings();
-            showToast("Paramètres sauvegardés", "var(--success)");
+            showToast(t('settings_saved'), "var(--success)");
             loadPlaylists();
         }
 
-        // --- NOUVELLES FONCTIONS DE GESTION DES PLAYLISTS ---
         let currentPlaylistName = "";
 
         function switchView(viewId) {
@@ -394,7 +559,7 @@
                 document.getElementById('playlistDetailView').classList.remove('edit-mode');
                 document.getElementById('playlistSearchSection').style.display = 'none';
                 document.getElementById('deletePlaylistBtn').style.display = 'none';
-                document.getElementById('toggleEditBtn').textContent = "Gérer la playlist";
+                document.getElementById('toggleEditBtn').textContent = t('manage_playlist_btn');
                 document.getElementById('playlistSearchResultsList').innerHTML = '';
             }
         }
@@ -411,7 +576,7 @@
                 const container = document.getElementById('managerPlaylistsList');
                 container.innerHTML = '';
                 if(list.length === 0) {
-                    container.innerHTML = '<span style="color:#aaa;">Aucune playlist trouvée.</span>';
+                    container.innerHTML = `<span style="color:#aaa;">${t('no_playlists_manager')}</span>`;
                 }
                 list.forEach(p => {
                     const div = document.createElement('div');
@@ -437,13 +602,12 @@
                 if(res.ok) {
                     input.value = '';
                     loadPlaylistsManager();
-                    loadPlaylists(); // Refresh also the add menu list
-                    showToast("Playlist créée !", "var(--success)");
+                    loadPlaylists();
+                    showToast(t('playlist_created'), "var(--success)");
                 } else {
-                    const err = await res.text();
-                    showToast("Erreur: " + err, "var(--error)");
+                    showToast(t('server_error'), "var(--error)");
                 }
-            } catch(e) { showToast("Erreur serveur", "var(--error)"); }
+            } catch(e) { showToast(t('server_error'), "var(--error)"); }
         }
 
         async function openPlaylistDetail(playlistName) {
@@ -460,21 +624,21 @@
                 container.innerHTML = '';
                 
                 if(!res.ok) {
-                    container.innerHTML = '<span style="color:var(--error);">Erreur lors de la lecture.</span>';
+                    container.innerHTML = `<span style="color:var(--error);">${t('error_reading')}</span>`;
                     return;
                 }
                 const tracks = await res.json();
                 if(!tracks || tracks.length === 0) {
-                    container.innerHTML = '<span style="color:#aaa;">La playlist est vide.</span>';
+                    container.innerHTML = `<span style="color:#aaa;">${t('empty_playlist')}</span>`;
                     return;
                 }
                 
-                tracks.forEach(t => {
+                tracks.forEach(tr => {
                     const div = document.createElement('div');
                     div.className = 'playlist-track-item';
                     div.innerHTML = `
-                        <div class="playlist-track-name">${t.display}</div>
-                        <button class="delete-icon-btn" title="Supprimer la musique" onclick="removeTrack('${t.line.replace(/'/g, "\\'")}')">🗑️</button>
+                        <div class="playlist-track-name">${tr.display}</div>
+                        <button class="delete-icon-btn" title="${t('remove_tooltip')}" onclick="removeTrack('${tr.line.replace(/'/g, "\\'")}')">🗑️</button>
                     `;
                     container.appendChild(div);
                 });
@@ -487,11 +651,11 @@
             const isEdit = view.classList.contains('edit-mode');
             document.getElementById('playlistSearchSection').style.display = isEdit ? 'block' : 'none';
             document.getElementById('deletePlaylistBtn').style.display = isEdit ? 'block' : 'none';
-            document.getElementById('toggleEditBtn').textContent = isEdit ? "Terminer la gestion" : "Gérer la playlist";
+            document.getElementById('toggleEditBtn').textContent = isEdit ? t('done_editing_btn') : t('manage_playlist_btn');
         }
 
         async function removeTrack(line) {
-            if(!confirm("Voulez-vous vraiment retirer cette musique de la playlist ?")) return;
+            if(!confirm(t('confirm_remove'))) return;
             try {
                 const res = await fetch('/api/playlist/remove_track', {
                     method: 'POST',
@@ -500,15 +664,15 @@
                 });
                 if(res.ok) {
                     loadPlaylistTracks();
-                    showToast("Musique retirée", "var(--success)");
+                    showToast(t('track_removed'), "var(--success)");
                 } else {
-                    showToast("Erreur lors de la suppression", "var(--error)");
+                    showToast(t('error_deleting'), "var(--error)");
                 }
-            } catch(e) { showToast("Erreur serveur", "var(--error)"); }
+            } catch(e) { showToast(t('server_error'), "var(--error)"); }
         }
 
         async function deleteCurrentPlaylist() {
-            if(!confirm("Voulez-vous vraiment supprimer définitivement cette playlist (le fichier .m3u) ?")) return;
+            if(!confirm(t('confirm_delete'))) return;
             try {
                 const res = await fetch('/api/playlist/delete', {
                     method: 'POST',
@@ -516,13 +680,13 @@
                     body: JSON.stringify({playlist: currentPlaylistName})
                 });
                 if(res.ok) {
-                    showToast("Playlist supprimée", "var(--success)");
-                    loadPlaylists(); // update main add menu
+                    showToast(t('playlist_deleted'), "var(--success)");
+                    loadPlaylists();
                     openPlaylistsManager();
                 } else {
-                    showToast("Erreur lors de la suppression", "var(--error)");
+                    showToast(t('error_deleting'), "var(--error)");
                 }
-            } catch(e) { showToast("Erreur serveur", "var(--error)"); }
+            } catch(e) { showToast(t('server_error'), "var(--error)"); }
         }
 
         async function searchMusicForPlaylist() {
@@ -535,21 +699,21 @@
             resultsDiv.innerHTML = '';
 
             if(!tracks || tracks.length === 0) {
-                resultsDiv.innerHTML = '<span style="color:#aaa;">Aucun résultat.</span>';
+                resultsDiv.innerHTML = `<span style="color:#aaa;">${t('no_results')}</span>`;
                 return;
             }
 
-            tracks.forEach(t => {
+            tracks.forEach(tr => {
                 const card = document.createElement('div');
                 card.className = 'track-card';
                 card.innerHTML = `
-                    <img src="${t.cover}" class="track-cover">
+                    <img src="${tr.cover}" class="track-cover">
                     <div class="track-info">
-                        <div class="track-title">${t.title}</div>
-                        <div class="track-artist">${t.artist} - ${t.album}</div>
+                        <div class="track-title">${tr.title}</div>
+                        <div class="track-artist">${tr.artist} - ${tr.album}</div>
                     </div>
                 `;
-                card.onclick = () => addMusicToCurrentPlaylist(t, card);
+                card.onclick = () => addMusicToCurrentPlaylist(tr, card);
                 resultsDiv.appendChild(card);
             });
         }
@@ -574,15 +738,16 @@
                 try { data = await res.json(); } catch(e) {}
                 
                 if(res.ok) {
-                    showToast(data.message || "Ajouté avec succès !", data.status === 'added' ? 'var(--success)' : 'var(--secondary)');
+                    const msg = data.status === 'pending' ? t('added_pending') : t('added_success');
+                    showToast(msg, data.status === 'added' ? 'var(--success)' : 'var(--secondary)');
                     if(data.status === 'added') {
-                        loadPlaylistTracks(); // Reload tracks immediately
+                        loadPlaylistTracks();
                     }
                 } else {
-                    showToast(data.message || "Erreur lors de l'ajout", "var(--error)");
+                    showToast(t('error_adding'), "var(--error)");
                 }
             } catch(e) {
-                showToast("Erreur de connexion au serveur", "var(--error)");
+                showToast(t('conn_error'), "var(--error)");
             } finally {
                 cardElement.style.borderColor = originalColor;
                 cardElement.style.opacity = '1';

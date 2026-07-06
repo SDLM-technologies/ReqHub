@@ -20,6 +20,7 @@ type Config struct {
 	LidarrURL string `json:"lidarrUrl"`
 	LidarrKey string `json:"lidarrKey"`
 	MusicPath string `json:"musicPath"`
+	Language  string `json:"language"`
 }
 
 var config Config
@@ -31,7 +32,7 @@ const dataDir = "data"
 var configFile = filepath.Join(dataDir, "config.json")
 var pendingFile = filepath.Join(dataDir, "pending_tracks.json")
 
-// --- Initialisation ---
+// --- Initialization ---
 func init() {
 	os.MkdirAll(dataDir, 0755)
 	pendingTracks = make(map[int][]string)
@@ -71,9 +72,9 @@ func savePending() {
 	os.WriteFile(pendingFile, b, 0644)
 }
 
-// --- Serveur HTTP ---
+// --- HTTP Server ---
 func main() {
-	// Fichiers statiques et routes web
+	// Static files and web routes
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.ServeFile(w, r, "index.html")
@@ -94,7 +95,7 @@ func main() {
 	http.HandleFunc("/api/playlist/remove_track", handlePlaylistRemoveTrack)
 	http.HandleFunc("/api/playlist/delete", handlePlaylistDelete)
 
-	fmt.Println("🚀 SDLM ReqHub démarré sur le port :8080")
+	fmt.Println("🚀 SDLM ReqHub started on port :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -113,7 +114,7 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		// S'assurer que le chemin de musique se termine proprement
+		// Ensure the music path ends cleanly
 		newConfig.MusicPath = filepath.Clean(newConfig.MusicPath)
 		configMutex.Lock()
 		config = newConfig
@@ -122,7 +123,7 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
 func handlePlaylists(w http.ResponseWriter, r *http.Request) {
@@ -138,7 +139,7 @@ func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 	var playlists []string
 	filepath.WalkDir(musicPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil // Ignorer les erreurs d'accès
+			return nil // Ignore access errors
 		}
 		if !d.IsDir() && strings.ToLower(filepath.Ext(path)) == ".m3u" {
 			rel, _ := filepath.Rel(musicPath, path)
@@ -150,18 +151,18 @@ func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(playlists)
 }
 
-// Interroge l'API publique d'iTunes pour une recherche rapide et précise des pistes
+// Queries the public iTunes API for quick and accurate track search
 func handleSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
-		http.Error(w, "Recherche vide", http.StatusBadRequest)
+		http.Error(w, "Empty search", http.StatusBadRequest)
 		return
 	}
 
 	itunesURL := fmt.Sprintf("https://itunes.apple.com/search?term=%s&entity=song&limit=15", url.QueryEscape(query))
 	resp, err := http.Get(itunesURL)
 	if err != nil {
-		http.Error(w, "Erreur API iTunes", http.StatusInternalServerError)
+		http.Error(w, "iTunes API Error", http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
@@ -171,7 +172,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(resp.Body).Decode(&result)
 
-	// Formatage de la réponse pour le frontend
+	// Formatting the response for the frontend
 	var tracks []map[string]interface{}
 	for _, item := range result.Results {
 		tracks = append(tracks, map[string]interface{}{
@@ -188,7 +189,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 
 func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -293,7 +294,7 @@ type AddRequest struct {
 
 func handleAdd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -303,20 +304,20 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Chercher l'album dans Lidarr
+	// 1. Search for the album in Lidarr
 	searchTerm := fmt.Sprintf("%s %s", req.Artist, req.Album)
 	lookupURL := fmt.Sprintf("/api/v1/album/lookup?term=%s", url.QueryEscape(searchTerm))
 	var lookupResults []map[string]interface{}
 	err := lidarrRequest("GET", lookupURL, nil, &lookupResults)
 	if err != nil || len(lookupResults) == 0 {
-		http.Error(w, "Album introuvable dans Lidarr/MusicBrainz", http.StatusNotFound)
+		http.Error(w, "Album not found in Lidarr/MusicBrainz", http.StatusNotFound)
 		return
 	}
 
 	bestAlbum := lookupResults[0]
 	albumID := int(bestAlbum["id"].(float64))
 
-	// 2. Si l'album n'existe pas dans Lidarr (ID == 0), on l'ajoute
+	// 2. If the album does not exist in Lidarr (ID == 0), add it
 	if albumID == 0 {
 		bestAlbum["addOptions"] = map[string]interface{}{
 			"searchForNewAlbum": true,
@@ -324,27 +325,27 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 		var addedAlbum map[string]interface{}
 		err = lidarrRequest("POST", "/api/v1/album", bestAlbum, &addedAlbum)
 		if err != nil {
-			http.Error(w, "Erreur lors de l'ajout de l'album dans Lidarr", http.StatusInternalServerError)
+			http.Error(w, "Error adding album to Lidarr", http.StatusInternalServerError)
 			return
 		}
 		if idVal, ok := addedAlbum["id"].(float64); ok {
 			albumID = int(idVal)
 		} else {
-			http.Error(w, "Lidarr n'a pas retourné d'ID d'album valide", http.StatusInternalServerError)
+			http.Error(w, "Lidarr did not return a valid album ID", http.StatusInternalServerError)
 			return
 		}
 	}
 
-	// 3. Obtenir les pistes de l'album
+	// 3. Get album tracks
 	trackURL := fmt.Sprintf("/api/v1/track?albumId=%d", albumID)
 	var tracks []map[string]interface{}
 	err = lidarrRequest("GET", trackURL, nil, &tracks)
 	if err != nil {
-		http.Error(w, "Erreur récupération pistes", http.StatusInternalServerError)
+		http.Error(w, "Error retrieving tracks", http.StatusInternalServerError)
 		return
 	}
 
-	// Trouver la bonne piste
+	// Find the correct track
 	var targetTrack map[string]interface{}
 	for _, t := range tracks {
 		title := t["title"].(string)
@@ -355,18 +356,18 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if targetTrack == nil {
-		http.Error(w, "Piste correspondante introuvable dans l'album Lidarr", http.StatusNotFound)
+		http.Error(w, "Matching track not found in the Lidarr album", http.StatusNotFound)
 		return
 	}
 
 	trackID := int(targetTrack["id"].(float64))
 	hasFile := targetTrack["hasFile"].(bool)
 
-	// 4. Scénario A (Déjà téléchargée)
+	// 4. Scenario A (Already downloaded)
 	if hasFile {
 		trackFileID := int(targetTrack["trackFileId"].(float64))
 		
-		// Obtenir tous les fichiers de l'album pour trouver le bon chemin
+		// Get all album files to find the correct path
 		var trackFiles []map[string]interface{}
 		lidarrRequest("GET", fmt.Sprintf("/api/v1/trackfile?albumId=%d", albumID), nil, &trackFiles)
 		
@@ -381,30 +382,30 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 		if filePath != "" {
 			err = syncPlaylists(filePath, req.Playlists)
 			if err != nil {
-				http.Error(w, "Erreur ajout/suppression playlist: "+err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Error adding/removing playlist: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			json.NewEncoder(w).Encode(map[string]string{"status": "added", "message": "Playlists synchronisées avec succès !"})
+			json.NewEncoder(w).Encode(map[string]string{"status": "added", "message": "Playlists synchronized successfully!"})
 			return
 		}
 	}
 
-	// 5. Scénario B (Manquante -> Mise en attente)
+	// 5. Scenario B (Missing -> Pending)
 	pendingMutex.Lock()
 	pendingTracks[trackID] = req.Playlists
 	pendingMutex.Unlock()
 	savePending()
 
-	// On lance une recherche automatique de l'album au cas où
+	// Trigger automatic search for the album just in case
 	lidarrRequest("POST", "/api/v1/command", map[string]interface{}{
 		"name": "AlbumSearch",
 		"albumIds": []int{albumID},
 	}, nil)
 
-	json.NewEncoder(w).Encode(map[string]string{"status": "pending", "message": "Piste manquante, téléchargement Lidarr demandé..."})
+	json.NewEncoder(w).Encode(map[string]string{"status": "pending", "message": "Missing track, Lidarr download requested..."})
 }
 
-// Route du Webhook
+// Webhook Route
 func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	var payload map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -414,7 +415,7 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	eventType, _ := payload["eventType"].(string)
 	if eventType == "TrackDownload" || eventType == "Download" {
-		// Analyser les pistes importées
+		// Analyze imported tracks
 		tracksInterface, hasTracks := payload["tracks"].([]interface{})
 		trackFile, hasFile := payload["trackFile"].(map[string]interface{})
 
@@ -426,9 +427,9 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 				tMap := tInter.(map[string]interface{})
 				if tID, ok := tMap["id"].(float64); ok {
 					trackID := int(tID)
-					// Si la piste était en attente
+					// If the track was pending
 					if playlists, exists := pendingTracks[trackID]; exists {
-						log.Printf("Piste en attente importée: %d -> %s\n", trackID, filePath)
+						log.Printf("Pending track imported: %d -> %s\n", trackID, filePath)
 						syncPlaylists(filePath, playlists)
 						delete(pendingTracks, trackID)
 					}
@@ -444,7 +445,7 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 // --- Helpers ---
 
-// Synchronise la présence du chemin audio dans les fichiers .m3u
+// Synchronizes the presence of the audio path in .m3u files
 func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 	configMutex.RLock()
 	musicPath := config.MusicPath
@@ -479,25 +480,25 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
 			if trimmed == "" {
-				continue // Ignorer les lignes vides existantes
+				continue // Ignore existing empty lines
 			}
 			if trimmed == relAudioPath {
 				found = true
 				if shouldBeInPlaylist {
-					newLines = append(newLines, line) // on garde
+					newLines = append(newLines, line) // keep
 				}
-				// sinon on ne l'ajoute pas (suppression)
+				// otherwise we don't add it (removal)
 			} else {
-				newLines = append(newLines, line) // ligne normale
+				newLines = append(newLines, line) // normal line
 			}
 		}
 
 		if shouldBeInPlaylist && !found {
-			newLines = append(newLines, relAudioPath) // ajout
+			newLines = append(newLines, relAudioPath) // addition
 		}
 
-		if len(newLines) != len(lines) { // Si des lignes ont été ajoutées ou supprimées
-			// Ajouter une ligne vide à la fin pour rester propre
+		if len(newLines) != len(lines) { // If lines were added or removed
+			// Add an empty line at the end to keep it clean
 			out := strings.Join(newLines, "\n")
 			if !strings.HasSuffix(out, "\n") {
 				out += "\n"
@@ -509,7 +510,7 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 	})
 }
 
-// Effectue une requête HTTP à l'API Lidarr
+// Performs an HTTP request to the Lidarr API
 func lidarrRequest(method, endpoint string, body interface{}, out interface{}) error {
 	configMutex.RLock()
 	lURL := strings.TrimRight(config.LidarrURL, "/")
@@ -554,7 +555,7 @@ type CreatePlaylistReq struct {
 
 func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	var req CreatePlaylistReq
@@ -564,7 +565,7 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" || strings.Contains(name, "..") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
-		http.Error(w, "Nom invalide", http.StatusBadRequest)
+		http.Error(w, "Invalid name", http.StatusBadRequest)
 		return
 	}
 	if !strings.HasSuffix(strings.ToLower(name), ".m3u") {
@@ -578,12 +579,12 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	fullPath := filepath.Join(musicPath, name)
 	
 	if _, err := os.Stat(fullPath); err == nil {
-		http.Error(w, "La playlist existe déjà", http.StatusConflict)
+		http.Error(w, "Playlist already exists", http.StatusConflict)
 		return
 	}
 
 	if err := os.WriteFile(fullPath, []byte(""), 0644); err != nil {
-		http.Error(w, "Erreur création fichier", http.StatusInternalServerError)
+		http.Error(w, "Error creating file", http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
@@ -597,7 +598,7 @@ type PlaylistItem struct {
 func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" || strings.Contains(name, "..") {
-		http.Error(w, "Nom invalide", http.StatusBadRequest)
+		http.Error(w, "Invalid name", http.StatusBadRequest)
 		return
 	}
 
@@ -610,9 +611,9 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			http.Error(w, "Playlist introuvable", http.StatusNotFound)
+			http.Error(w, "Playlist not found", http.StatusNotFound)
 		} else {
-			http.Error(w, "Erreur lecture", http.StatusInternalServerError)
+			http.Error(w, "Read error", http.StatusInternalServerError)
 		}
 		return
 	}
@@ -661,7 +662,7 @@ type RemoveTrackReq struct {
 
 func handlePlaylistRemoveTrack(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	var req RemoveTrackReq
@@ -670,7 +671,7 @@ func handlePlaylistRemoveTrack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.Contains(req.Playlist, "..") {
-		http.Error(w, "Chemin invalide", http.StatusBadRequest)
+		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
 
@@ -682,7 +683,7 @@ func handlePlaylistRemoveTrack(w http.ResponseWriter, r *http.Request) {
 
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
-		http.Error(w, "Erreur lecture", http.StatusInternalServerError)
+		http.Error(w, "Read error", http.StatusInternalServerError)
 		return
 	}
 
@@ -711,7 +712,7 @@ func handlePlaylistRemoveTrack(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := os.WriteFile(fullPath, []byte(out), 0644); err != nil {
-		http.Error(w, "Erreur écriture", http.StatusInternalServerError)
+		http.Error(w, "Write error", http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
@@ -723,7 +724,7 @@ type DeletePlaylistReq struct {
 
 func handlePlaylistDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	var req DeletePlaylistReq
@@ -732,7 +733,7 @@ func handlePlaylistDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.Contains(req.Playlist, "..") {
-		http.Error(w, "Chemin invalide", http.StatusBadRequest)
+		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
 
@@ -743,10 +744,8 @@ func handlePlaylistDelete(w http.ResponseWriter, r *http.Request) {
 	fullPath := filepath.Join(musicPath, req.Playlist)
 
 	if err := os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
-		http.Error(w, "Erreur suppression", http.StatusInternalServerError)
+		http.Error(w, "Delete error", http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
-
-
