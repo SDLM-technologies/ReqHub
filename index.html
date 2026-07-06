@@ -132,7 +132,48 @@
 <body>
 
     <header>
-        <h1><span style="color: var(--secondary);">SDLM</span> ReqHub</h1>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width: 50px; height: 50px; filter: drop-shadow(0 0 8px rgba(156, 39, 176, 0.5));">
+              <defs>
+                <g id="target">
+                  <circle cx="50" cy="50" r="48" fill="white" stroke="black" stroke-width="0.5" />
+                  <circle cx="50" cy="50" r="41" fill="none" stroke="black" stroke-width="0.5" />
+                  <circle cx="50" cy="50" r="34" fill="none" stroke="black" stroke-width="0.5" />
+                  <circle cx="50" cy="50" r="27" fill="none" stroke="black" stroke-width="0.5" />
+                  <circle cx="50" cy="50" r="20" fill="none" stroke="black" stroke-width="0.5" />
+                </g>
+                <mask id="bio-lobes-mask">
+                  <rect width="100" height="100" fill="white" />
+                  <circle cx="50" cy="34" r="14" fill="black" />
+                  <circle cx="63.86" cy="58" r="14" fill="black" />
+                  <circle cx="36.14" cy="58" r="14" fill="black" />
+                  <line x1="50" y1="50" x2="50" y2="100" stroke="black" stroke-width="2.5" />
+                  <line x1="50" y1="50" x2="6.7" y2="25" stroke="black" stroke-width="2.5" />
+                  <line x1="50" y1="50" x2="93.3" y2="25" stroke="black" stroke-width="2.5" />
+                </mask>
+                <mask id="bio-ring-mask">
+                  <rect width="100" height="100" fill="white" />
+                  <line x1="50" y1="50" x2="50" y2="100" stroke="black" stroke-width="2.5" />
+                  <line x1="50" y1="50" x2="6.7" y2="25" stroke="black" stroke-width="2.5" />
+                  <line x1="50" y1="50" x2="93.3" y2="25" stroke="black" stroke-width="2.5" />
+                </mask>
+              </defs>
+              <use href="#target" />
+              <g mask="url(#bio-lobes-mask)">
+                <circle cx="50" cy="34" r="22" fill="#9c27b0" />
+                <circle cx="63.86" cy="58" r="22" fill="#9c27b0" />
+                <circle cx="36.14" cy="58" r="22" fill="#9c27b0" />
+              </g>
+              <circle cx="50" cy="50" r="16" fill="none" stroke="#9c27b0" stroke-width="3" mask="url(#bio-ring-mask)" />
+              <g id="center-red-target">
+                <circle cx="50" cy="50" r="10" fill="#e53935" stroke="#b71c1c" stroke-width="1" />
+                <circle cx="50" cy="50" r="7" fill="none" stroke="#fff" stroke-width="0.5" opacity="0.6" />
+                <circle cx="50" cy="50" r="4" fill="none" stroke="#fff" stroke-width="0.5" opacity="0.6" />
+                <circle cx="50" cy="50" r="1.5" fill="#fff" opacity="0.8" />
+              </g>
+            </svg>
+            <h1><span style="color: var(--secondary);">SDLM</span> ReqHub</h1>
+        </div>
         <div class="header-actions">
             <button class="btn-outline" style="padding: 8px 12px;" onclick="openPlaylistsManager()" data-i18n="manage_playlists">Manage Playlists</button>
             <button class="settings-btn" onclick="openSettings()">⚙️</button>
