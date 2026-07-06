@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  reqhub:
+    image: ghcr.io/VOTRE_PSEUDO_GITHUB/NOM_DU_DEPOT:latest # ⚠️ REMPLACEZ par votre pseudo et le nom du dépôt (tout en minuscules)
+    container_name: sdlm-reqhub
+    ports:
+      - "8080:8080" # Port d'accès à l'interface web
+    environment:
+      - TZ=Europe/Paris
+    volumes:
+      # /!\ MODIFIEZ le chemin de gauche par le chemin absolu de votre dossier de musique sur TrueNAS.
+      # /!\ Ce chemin DOIT être exactement le même que celui que vous renseignerez dans les paramètres de l'app.
+      - /mnt/votre_pool/dossier_musique:/music:rw
+      
+      # Dossier local pour sauvegarder la configuration (URL, Clé API, pending tracks)
+      - ./data:/app/data
+    restart: unless-stopped

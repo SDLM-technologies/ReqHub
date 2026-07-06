@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDLM ReqHub</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --bg-card: #1e1e24;
+            --text: #e0e0e0;
+            --primary: #9b51e0;
+            --secondary: #f2c94c;
+            --hover: #bb86fc;
+            --success: #2e7d32;
+            --error: #c62828;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        h1 { margin: 0; color: var(--primary); }
+        .settings-btn {
+            background: none; border: none; font-size: 1.5rem; color: var(--text); cursor: pointer; transition: 0.3s;
+        }
+        .settings-btn:hover { color: var(--secondary); transform: rotate(90deg); }
+        
+        .search-container {
+            width: 100%; max-width: 600px; display: flex; gap: 10px; margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #222; color: white;
+            font-size: 1rem;
+        }
+        input[type="text"]:focus { outline: none; border-color: var(--primary); }
+        button {
+            padding: 12px 20px; border-radius: 8px; border: none; background: var(--primary); color: white;
+            font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        button:hover { background: var(--hover); }
+
+        .results { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 15px; }
+        .track-card {
+            background: var(--bg-card); border-radius: 10px; padding: 15px; display: flex; gap: 15px;
+            align-items: center; border: 1px solid transparent; transition: 0.2s; cursor: pointer;
+        }
+        .track-card:hover { border-color: var(--secondary); }
+        .track-card.selected { border-color: var(--primary); box-shadow: 0 0 10px rgba(155, 81, 224, 0.3); }
+        .track-cover { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; }
+        .track-info { flex: 1; }
+        .track-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 4px; }
+        .track-artist { color: #aaa; font-size: 0.9rem; }
+
+        .playlists-section {
+            width: 100%; max-width: 600px; background: var(--bg-card); padding: 15px; border-radius: 10px;
+            margin-top: 20px; display: none; box-sizing: border-box;
+        }
+        .playlists-list { max-height: 200px; overflow-y: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .playlist-label { display: flex; align-items: center; gap: 10px; cursor: pointer; word-break: break-all; }
+        
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: var(--bg-card); padding: 25px; border-radius: 12px; width: 90%; max-width: 400px;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+        .modal h2 { margin: 0 0 10px 0; color: var(--secondary); }
+        .modal input { width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; background: #333; color: white;
+            padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: none; z-index: 1000;
+        }
+
+        /* Nouveaux styles pour le gestionnaire de playlists */
+        .view { display: none; width: 100%; max-width: 600px; flex-direction: column; align-items: center; }
+        .view.active { display: flex; }
+        
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .btn-secondary { background: var(--secondary); color: black; }
+        .btn-secondary:hover { background: #e0b63b; }
+        .btn-danger { background: var(--error); }
+        .btn-danger:hover { background: #b71c1c; }
+        .btn-outline { background: transparent; border: 1px solid var(--text); color: var(--text); }
+        .btn-outline:hover { background: rgba(255,255,255,0.1); }
+        
+        .playlist-manager-item {
+            width: 100%; background: var(--bg-card); padding: 15px; border-radius: 10px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s;
+            box-sizing: border-box;
+        }
+        .playlist-manager-item:hover { border-left: 4px solid var(--primary); }
+        
+        .create-playlist-container { width: 100%; display: flex; gap: 10px; margin-top: 20px; }
+        
+        .playlist-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .playlist-actions { width: 100%; display: flex; gap: 10px; margin-bottom: 20px; }
+        
+        .playlist-track-item {
+            width: 100%; background: var(--bg-card); padding: 12px 15px; border-radius: 8px; margin-bottom: 8px;
+            display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
+        }
+        .playlist-track-name { flex: 1; word-break: break-all; margin-right: 10px; }
+        .delete-icon-btn {
+            background: var(--error); border: none; border-radius: 4px; color: white; cursor: pointer;
+            padding: 8px; display: none;
+        }
+        .delete-icon-btn:hover { background: #b71c1c; }
+        .edit-mode .delete-icon-btn { display: block; }
+        .edit-mode .btn-danger { display: block !important; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><span style="color: var(--secondary);">SDLM</span> ReqHub</h1>
+        <div class="header-actions">
+            <button class="btn-outline" style="padding: 8px 12px;" onclick="openPlaylistsManager()">Gérer les Playlists</button>
+            <button class="settings-btn" onclick="openSettings()">⚙️</button>
+        </div>
+    </header>
+
+    <!-- VUE PRINCIPALE -->
+    <div id="mainView" class="view active">
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Chercher une musique...">
+            <button onclick="searchMusic()">Rechercher</button>
+        </div>
+
+        <div class="results" id="resultsList"></div>
+
+        <div class="playlists-section" id="playlistsSection">
+            <h3 style="margin-top:0">Ajouter aux playlists</h3>
+            <div class="playlists-list" id="playlistsList"></div>
+            <button id="addBtn" style="margin-top: 15px; width: 100%; background: var(--secondary); color: black;" onclick="addMusic()">Ajouter</button>
+        </div>
+    </div>
+
+    <!-- VUE GESTIONNAIRE DE PLAYLISTS -->
+    <div id="playlistManagerView" class="view">
+        <div style="width:100%; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <button class="btn-outline" onclick="switchView('mainView')">← Retour</button>
+            <h2 style="margin:0; color: var(--primary);">Mes Playlists</h2>
+            <div style="width: 80px;"></div> <!-- placeholder pour centrer -->
+        </div>
+        <div id="managerPlaylistsList" style="width: 100%;"></div>
+        <div class="create-playlist-container">
+            <input type="text" id="newPlaylistName" placeholder="Nom de la nouvelle playlist...">
+            <button onclick="createPlaylist()">Créer</button>
+        </div>
+    </div>
+
+    <!-- VUE DÉTAIL D'UNE PLAYLIST -->
+    <div id="playlistDetailView" class="view">
+        <div class="playlist-header">
+            <button class="btn-outline" onclick="openPlaylistsManager()">← Retour</button>
+            <h2 id="detailPlaylistTitle" style="margin:0; color: var(--secondary); word-break: break-all; text-align:center; flex:1; padding: 0 10px;"></h2>
+            <button id="deletePlaylistBtn" class="btn-danger" style="display: none;" onclick="deleteCurrentPlaylist()">Supprimer</button>
+        </div>
+        <div class="playlist-actions">
+            <button id="toggleEditBtn" class="btn-secondary" style="flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s;" onclick="toggleEditMode()">Gérer la playlist</button>
+        </div>
+        
+        <div id="playlistSearchSection" style="display: none; width: 100%; margin-bottom: 20px;">
+            <div class="search-container">
+                <input type="text" id="playlistSearchInput" placeholder="Chercher une musique à ajouter...">
+                <button onclick="searchMusicForPlaylist()">Rechercher</button>
+            </div>
+            <div class="results" id="playlistSearchResultsList"></div>
+        </div>
+
+        <div id="playlistTracksList" style="width: 100%;"></div>
+    </div>
+
+    <!-- Modal Settings -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <h2>Paramètres</h2>
+            <label>URL Lidarr</label>
+            <input type="text" id="lidarrUrl" placeholder="http://192.168.x.x:8686">
+            <label>Clé API Lidarr</label>
+            <input type="text" id="lidarrKey" placeholder="xxxxxxxxxxxxxxx">
+            <label>Dossier Musique NAS (Absolu)</label>
+            <input type="text" id="musicPath" placeholder="/mnt/pool/media/music">
+            <div class="modal-actions">
+                <button style="background: #555;" onclick="closeSettings()">Annuler</button>
+                <button onclick="saveSettings()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let selectedTrack = null;
+
+        document.addEventListener('DOMContentLoaded', loadPlaylists);
+
+        function showToast(msg, color = 'var(--primary)') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.borderLeft = `5px solid ${color}`;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 4000);
+        }
+
+        async function loadPlaylists() {
+            try {
+                const res = await fetch('/api/playlists');
+                const list = await res.json();
+                const container = document.getElementById('playlistsList');
+                container.innerHTML = '';
+                if(list.length === 0) {
+                    container.innerHTML = '<span style="color:#aaa;">Aucune playlist trouvée. Vérifiez vos paramètres.</span>';
+                }
+                list.forEach(p => {
+                    const lbl = document.createElement('label');
+                    lbl.className = 'playlist-label';
+                    // Retire l'extension et affiche le nom
+                    const name = p.replace(/\.m3u$/i, '');
+                    lbl.innerHTML = `<input type="checkbox" value="${p}"> ${name}`;
+                    container.appendChild(lbl);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        async function searchMusic() {
+            const q = document.getElementById('searchInput').value;
+            if(!q) return;
+            const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+            const tracks = await res.json();
+            
+            const resultsDiv = document.getElementById('resultsList');
+            resultsDiv.innerHTML = '';
+            document.getElementById('playlistsSection').style.display = 'none';
+            selectedTrack = null;
+
+            if(!tracks || tracks.length === 0) {
+                resultsDiv.innerHTML = '<span style="color:#aaa;">Aucun résultat trouvé sur iTunes.</span>';
+                return;
+            }
+
+            tracks.forEach(t => {
+                const card = document.createElement('div');
+                card.className = 'track-card';
+                card.innerHTML = `
+                    <img src="${t.cover}" class="track-cover">
+                    <div class="track-info">
+                        <div class="track-title">${t.title}</div>
+                        <div class="track-artist">${t.artist} - ${t.album}</div>
+                    </div>
+                `;
+                card.onclick = async () => {
+                    document.querySelectorAll('.track-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    selectedTrack = t;
+                    document.getElementById('playlistsSection').style.display = 'block';
+                    
+                    // Réinitialiser les cases
+                    document.querySelectorAll('#playlistsList input[type="checkbox"]').forEach(c => c.checked = false);
+                    
+                    const btn = document.getElementById('addBtn');
+                    btn.disabled = true;
+                    btn.textContent = "Vérification...";
+                    
+                    try {
+                        const res = await fetch('/api/track_status', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                title: selectedTrack.title,
+                                artist: selectedTrack.artist,
+                                album: selectedTrack.album
+                            })
+                        });
+                        const existingPlaylists = await res.json();
+                        existingPlaylists.forEach(p => {
+                            // Échapper les antislashs pour le sélecteur CSS
+                            const pSafe = p.replace(/\\/g, '\\\\');
+                            const cb = document.querySelector(`#playlistsList input[value="${pSafe}"]`);
+                            if (cb) cb.checked = true;
+                        });
+                        if (existingPlaylists.length > 0) {
+                            btn.textContent = "Sauvegarder les modifications";
+                        } else {
+                            btn.textContent = "Ajouter";
+                        }
+                    } catch(e) {
+                        btn.textContent = "Ajouter / Sauvegarder";
+                    } finally {
+                        btn.disabled = false;
+                    }
+                };
+                resultsDiv.appendChild(card);
+            });
+        }
+
+        async function addMusic() {
+            if(!selectedTrack) return;
+            const checkboxes = document.querySelectorAll('#playlistsList input[type="checkbox"]');
+            const selectedPlaylists = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+            
+            // On enlève la restriction qui empêchait la sauvegarde si 0 playlist cochée
+            // Car l'utilisateur peut vouloir TOUT décocher pour supprimer la musique.
+
+            const btn = document.getElementById('addBtn');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = "Traitement...";
+
+            try {
+                const res = await fetch('/api/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        title: selectedTrack.title,
+                        artist: selectedTrack.artist,
+                        album: selectedTrack.album,
+                        playlists: selectedPlaylists
+                    })
+                });
+                let data = {};
+                try { data = await res.json(); } catch(e) {}
+                
+                if(res.ok) {
+                    showToast(data.message || "Ajouté avec succès !", data.status === 'added' ? 'var(--success)' : 'var(--secondary)');
+                } else {
+                    showToast(data.message || "Erreur lors de l'ajout", "var(--error)");
+                }
+            } catch(e) {
+                showToast("Erreur de connexion au serveur", "var(--error)");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        async function openSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                const conf = await res.json();
+                document.getElementById('lidarrUrl').value = conf.lidarrUrl || '';
+                document.getElementById('lidarrKey').value = conf.lidarrKey || '';
+                document.getElementById('musicPath').value = conf.musicPath || '';
+            } catch(e) {}
+            document.getElementById('settingsModal').style.display = 'flex';
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        async function saveSettings() {
+            const conf = {
+                lidarrUrl: document.getElementById('lidarrUrl').value,
+                lidarrKey: document.getElementById('lidarrKey').value,
+                musicPath: document.getElementById('musicPath').value
+            };
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(conf)
+            });
+            closeSettings();
+            showToast("Paramètres sauvegardés", "var(--success)");
+            loadPlaylists();
+        }
+
+        // --- NOUVELLES FONCTIONS DE GESTION DES PLAYLISTS ---
+        let currentPlaylistName = "";
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            if(viewId === 'playlistDetailView') {
+                document.getElementById('playlistDetailView').classList.remove('edit-mode');
+                document.getElementById('playlistSearchSection').style.display = 'none';
+                document.getElementById('deletePlaylistBtn').style.display = 'none';
+                document.getElementById('toggleEditBtn').textContent = "Gérer la playlist";
+                document.getElementById('playlistSearchResultsList').innerHTML = '';
+            }
+        }
+
+        async function openPlaylistsManager() {
+            switchView('playlistManagerView');
+            loadPlaylistsManager();
+        }
+
+        async function loadPlaylistsManager() {
+            try {
+                const res = await fetch('/api/playlists');
+                const list = await res.json();
+                const container = document.getElementById('managerPlaylistsList');
+                container.innerHTML = '';
+                if(list.length === 0) {
+                    container.innerHTML = '<span style="color:#aaa;">Aucune playlist trouvée.</span>';
+                }
+                list.forEach(p => {
+                    const div = document.createElement('div');
+                    div.className = 'playlist-manager-item';
+                    const name = p.replace(/\.m3u$/i, '');
+                    div.innerHTML = `<span style="font-weight:bold;">${name}</span> <span>▶</span>`;
+                    div.onclick = () => openPlaylistDetail(p);
+                    container.appendChild(div);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        async function createPlaylist() {
+            const input = document.getElementById('newPlaylistName');
+            const name = input.value.trim();
+            if(!name) return;
+            try {
+                const res = await fetch('/api/playlist/create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name: name})
+                });
+                if(res.ok) {
+                    input.value = '';
+                    loadPlaylistsManager();
+                    loadPlaylists(); // Refresh also the add menu list
+                    showToast("Playlist créée !", "var(--success)");
+                } else {
+                    const err = await res.text();
+                    showToast("Erreur: " + err, "var(--error)");
+                }
+            } catch(e) { showToast("Erreur serveur", "var(--error)"); }
+        }
+
+        async function openPlaylistDetail(playlistName) {
+            currentPlaylistName = playlistName;
+            document.getElementById('detailPlaylistTitle').textContent = playlistName.replace(/\.m3u$/i, '');
+            switchView('playlistDetailView');
+            loadPlaylistTracks();
+        }
+
+        async function loadPlaylistTracks() {
+            try {
+                const res = await fetch('/api/playlist/read?name=' + encodeURIComponent(currentPlaylistName));
+                const container = document.getElementById('playlistTracksList');
+                container.innerHTML = '';
+                
+                if(!res.ok) {
+                    container.innerHTML = '<span style="color:var(--error);">Erreur lors de la lecture.</span>';
+                    return;
+                }
+                const tracks = await res.json();
+                if(!tracks || tracks.length === 0) {
+                    container.innerHTML = '<span style="color:#aaa;">La playlist est vide.</span>';
+                    return;
+                }
+                
+                tracks.forEach(t => {
+                    const div = document.createElement('div');
+                    div.className = 'playlist-track-item';
+                    div.innerHTML = `
+                        <div class="playlist-track-name">${t.display}</div>
+                        <button class="delete-icon-btn" title="Supprimer la musique" onclick="removeTrack('${t.line.replace(/'/g, "\\'")}')">🗑️</button>
+                    `;
+                    container.appendChild(div);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        function toggleEditMode() {
+            const view = document.getElementById('playlistDetailView');
+            view.classList.toggle('edit-mode');
+            const isEdit = view.classList.contains('edit-mode');
+            document.getElementById('playlistSearchSection').style.display = isEdit ? 'block' : 'none';
+            document.getElementById('deletePlaylistBtn').style.display = isEdit ? 'block' : 'none';
+            document.getElementById('toggleEditBtn').textContent = isEdit ? "Terminer la gestion" : "Gérer la playlist";
+        }
+
+        async function removeTrack(line) {
+            if(!confirm("Voulez-vous vraiment retirer cette musique de la playlist ?")) return;
+            try {
+                const res = await fetch('/api/playlist/remove_track', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({playlist: currentPlaylistName, line: line})
+                });
+                if(res.ok) {
+                    loadPlaylistTracks();
+                    showToast("Musique retirée", "var(--success)");
+                } else {
+                    showToast("Erreur lors de la suppression", "var(--error)");
+                }
+            } catch(e) { showToast("Erreur serveur", "var(--error)"); }
+        }
+
+        async function deleteCurrentPlaylist() {
+            if(!confirm("Voulez-vous vraiment supprimer définitivement cette playlist (le fichier .m3u) ?")) return;
+            try {
+                const res = await fetch('/api/playlist/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({playlist: currentPlaylistName})
+                });
+                if(res.ok) {
+                    showToast("Playlist supprimée", "var(--success)");
+                    loadPlaylists(); // update main add menu
+                    openPlaylistsManager();
+                } else {
+                    showToast("Erreur lors de la suppression", "var(--error)");
+                }
+            } catch(e) { showToast("Erreur serveur", "var(--error)"); }
+        }
+
+        async function searchMusicForPlaylist() {
+            const q = document.getElementById('playlistSearchInput').value;
+            if(!q) return;
+            const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+            const tracks = await res.json();
+            
+            const resultsDiv = document.getElementById('playlistSearchResultsList');
+            resultsDiv.innerHTML = '';
+
+            if(!tracks || tracks.length === 0) {
+                resultsDiv.innerHTML = '<span style="color:#aaa;">Aucun résultat.</span>';
+                return;
+            }
+
+            tracks.forEach(t => {
+                const card = document.createElement('div');
+                card.className = 'track-card';
+                card.innerHTML = `
+                    <img src="${t.cover}" class="track-cover">
+                    <div class="track-info">
+                        <div class="track-title">${t.title}</div>
+                        <div class="track-artist">${t.artist} - ${t.album}</div>
+                    </div>
+                `;
+                card.onclick = () => addMusicToCurrentPlaylist(t, card);
+                resultsDiv.appendChild(card);
+            });
+        }
+
+        async function addMusicToCurrentPlaylist(track, cardElement) {
+            const originalColor = cardElement.style.borderColor;
+            cardElement.style.borderColor = 'var(--secondary)';
+            cardElement.style.opacity = '0.7';
+
+            try {
+                const res = await fetch('/api/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        title: track.title,
+                        artist: track.artist,
+                        album: track.album,
+                        playlists: [currentPlaylistName]
+                    })
+                });
+                let data = {};
+                try { data = await res.json(); } catch(e) {}
+                
+                if(res.ok) {
+                    showToast(data.message || "Ajouté avec succès !", data.status === 'added' ? 'var(--success)' : 'var(--secondary)');
+                    if(data.status === 'added') {
+                        loadPlaylistTracks(); // Reload tracks immediately
+                    }
+                } else {
+                    showToast(data.message || "Erreur lors de l'ajout", "var(--error)");
+                }
+            } catch(e) {
+                showToast("Erreur de connexion au serveur", "var(--error)");
+            } finally {
+                cardElement.style.borderColor = originalColor;
+                cardElement.style.opacity = '1';
+            }
+        }
+    </script>
+</body>
+</html>
