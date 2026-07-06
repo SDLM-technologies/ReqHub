@@ -184,7 +184,7 @@
                 <circle cx="50" cy="50" r="1.5" fill="#fff" opacity="0.8" />
               </g>
             </svg>
-            <svg viewBox="0 0 250 80" xmlns="http://www.w3.org/2000/svg" style="height: 75px; width: auto; margin-left: 0px; margin-top: -6px;">
+            <svg viewBox="0 0 250 80" xmlns="http://www.w3.org/2000/svg" style="height: 75px; width: auto; margin-left: -10px; margin-top: -6px;">
               <defs>
                 <linearGradient id="eq-grad" x1="40" y1="0" x2="205" y2="0" gradientUnits="userSpaceOnUse">
                   <stop offset="0%" stop-color="#e53935" />
@@ -226,11 +226,24 @@
 
         <div class="results" id="resultsList"></div>
 
-        <div class="playlists-section" id="playlistsSection">
+    <!-- TRACK MANAGEMENT MODAL -->
+    <div id="trackModal" class="modal" onclick="if(event.target===this) closeTrackModal()">
+        <div class="modal-content" style="max-width: 500px; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <img id="trackModalCover" src="" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
+                    <div>
+                        <div id="trackModalTitle" style="font-weight: bold; font-size: 1.2em; color: var(--primary);"></div>
+                        <div id="trackModalArtist" style="color: #aaa; font-size: 0.9em;"></div>
+                    </div>
+                </div>
+                <button class="btn-outline" style="border: none; font-size: 24px; padding: 0; cursor: pointer; color: var(--text);" onclick="closeTrackModal()">✕</button>
+            </div>
             <h3 style="margin-top:0" data-i18n="add_to_playlists">Add to playlists</h3>
-            <div class="playlists-list" id="playlistsList"></div>
+            <div class="playlists-list" id="playlistsList" style="max-height: 250px;"></div>
             <button id="addBtn" style="margin-top: 15px; width: 100%; background: var(--secondary); color: black;" onclick="addMusic()" data-i18n="add_btn">Add</button>
         </div>
+    </div>
     </div>
 
     <!-- PLAYLIST MANAGER VIEW -->
@@ -576,6 +589,10 @@
             });
         });
 
+        function closeTrackModal() {
+            document.getElementById('trackModal').style.display = 'none';
+        }
+
         async function searchMusic() {
             const q = document.getElementById('searchInput').value;
             if(!q) return;
@@ -587,7 +604,7 @@
                 const tracks = await res.json();
                 
                 resultsDiv.innerHTML = '';
-                document.getElementById('playlistsSection').style.display = 'none';
+                document.getElementById('trackModal').style.display = 'none';
                 selectedTrack = null;
 
                 if(!tracks || tracks.length === 0) {
@@ -610,9 +627,10 @@
                     card.classList.add('selected');
                     selectedTrack = tr;
                     
-                    card.after(document.getElementById('playlistsSection'));
-                    document.getElementById('playlistsSection').style.display = 'block';
-                    document.getElementById('playlistsSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    document.getElementById('trackModalCover').src = tr.cover;
+                    document.getElementById('trackModalTitle').textContent = tr.title;
+                    document.getElementById('trackModalArtist').textContent = tr.artist + " - " + tr.album;
+                    document.getElementById('trackModal').style.display = 'flex';
                     
                     document.querySelectorAll('#playlistsList input[type="checkbox"]').forEach(c => c.checked = false);
                     
