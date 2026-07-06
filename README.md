@@ -37,8 +37,6 @@ You can deploy SDLM ReqHub easily using Docker Compose.
 Create a `docker-compose.yml` file with the following content (or copy the one from this repository):
 
 ```yaml
-version: '3.8'
-
 services:
   reqhub:
     image: ghcr.io/sdlm-technologies/reqhub:latest
@@ -63,7 +61,7 @@ services:
 **Option A: Via Dockge / Portainer (Recommended)**
 1. Open your Dockge or Portainer interface.
 2. Create a new Stack/Compose.
-3. Paste the `docker-compose.yml` content and adapt your volume paths and the image registry URL.
+3. Paste the `docker-compose.yml` content and adapt your volume paths.
 4. Deploy!
 
 **Option B: Via SSH (Classic)**
@@ -75,7 +73,7 @@ services:
    ```
 
 ### Step 3: SDLM ReqHub Web Configuration
-1. Open your web browser and go to `http://<YOUR_SERVER_IP>:8080`.
+1. Open your web browser and go to `http://<YOUR_SERVER_IP>:8080`(or your configured port number).
 2. Click on the **Settings (⚙️)** icon in the top right corner.
 3. Fill in the form:
    - **Lidarr URL:** The complete address of your Lidarr instance (e.g., `http://192.168.1.50:8686`).

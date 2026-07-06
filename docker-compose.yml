@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   reqhub:
     image: ghcr.io/sdlm-technologies/reqhub:latest
@@ -13,7 +11,7 @@ services:
       # /!\ E.g. - /mnt/pool/music:/mnt/pool/music:rw
       # /!\ This must perfectly match the path that Lidarr knows.
       - /mnt/your_pool/music_folder:/mnt/your_pool/music_folder:rw
-      
+
       # Local folder to save the configuration (URL, API Key, pending tracks)
       - ./data:/app/data
     restart: unless-stopped

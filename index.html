@@ -408,6 +408,54 @@
             } catch(e) { console.error(e); }
         }
 
+        let mainSearchTimer = null;
+        let mainLastSearch = '';
+        let plSearchTimer = null;
+        let plLastSearch = '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('searchInput').addEventListener('input', function() {
+                const val = this.value.trim();
+                if (val === '') {
+                    document.getElementById('resultsList').innerHTML = '';
+                    document.getElementById('playlistsSection').style.display = 'none';
+                    mainLastSearch = '';
+                    return;
+                }
+                
+                if (!mainSearchTimer) {
+                    mainSearchTimer = setTimeout(() => {
+                        const currentVal = document.getElementById('searchInput').value.trim();
+                        if (currentVal !== '' && currentVal !== mainLastSearch) {
+                            mainLastSearch = currentVal;
+                            searchMusic();
+                        }
+                        mainSearchTimer = null;
+                    }, 500);
+                }
+            });
+
+            document.getElementById('playlistSearchInput').addEventListener('input', function() {
+                const val = this.value.trim();
+                if (val === '') {
+                    document.getElementById('playlistSearchResultsList').innerHTML = '';
+                    plLastSearch = '';
+                    return;
+                }
+
+                if (!plSearchTimer) {
+                    plSearchTimer = setTimeout(() => {
+                        const currentVal = document.getElementById('playlistSearchInput').value.trim();
+                        if (currentVal !== '' && currentVal !== plLastSearch) {
+                            plLastSearch = currentVal;
+                            searchMusicForPlaylist();
+                        }
+                        plSearchTimer = null;
+                    }, 500);
+                }
+            });
+        });
+
         async function searchMusic() {
             const q = document.getElementById('searchInput').value;
             if(!q) return;
