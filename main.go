@@ -539,11 +539,15 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 		var newLines []string
 		found := false
 		modified := false
+		hasExtM3u := false
 
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
 			if trimmed == "" {
 				continue // Ignore existing empty lines
+			}
+			if strings.HasPrefix(trimmed, "#EXTM3U") {
+				hasExtM3u = true
 			}
 			if trimmed == relAudioPath {
 				found = true
@@ -559,6 +563,11 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 
 		if shouldBeInPlaylist && !found {
 			newLines = append(newLines, relAudioPath) // addition
+			modified = true
+		}
+
+		if !hasExtM3u {
+			newLines = append([]string{"#EXTM3U"}, newLines...)
 			modified = true
 		}
 
@@ -649,7 +658,7 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := os.WriteFile(fullPath, []byte(""), 0644); err != nil {
+	if err := os.WriteFile(fullPath, []byte("#EXTM3U\n"), 0644); err != nil {
 		http.Error(w, "Error creating file", http.StatusInternalServerError)
 		return
 	}
