@@ -538,6 +538,7 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 		lines := strings.Split(string(content), "\n")
 		var newLines []string
 		found := false
+		modified := false
 
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
@@ -548,8 +549,9 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 				found = true
 				if shouldBeInPlaylist {
 					newLines = append(newLines, line) // keep
+				} else {
+					modified = true // removal
 				}
-				// otherwise we don't add it (removal)
 			} else {
 				newLines = append(newLines, line) // normal line
 			}
@@ -557,9 +559,10 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 
 		if shouldBeInPlaylist && !found {
 			newLines = append(newLines, relAudioPath) // addition
+			modified = true
 		}
 
-		if len(newLines) != len(lines) { // If lines were added or removed
+		if modified {
 			// Add an empty line at the end to keep it clean
 			out := strings.Join(newLines, "\n")
 			if !strings.HasSuffix(out, "\n") {
@@ -632,7 +635,7 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	lowName := strings.ToLower(name)
 	if !strings.HasSuffix(lowName, ".m3u") && !strings.HasSuffix(lowName, ".m3u8") {
-		name += ".m3u"
+		name += ".m3u8"
 	}
 	
 	configMutex.RLock()
