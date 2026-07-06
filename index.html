@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SDLM ReqHub</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
     <style>
         :root {
             --bg: #121212;
@@ -486,7 +487,10 @@
                     document.querySelectorAll('.track-card').forEach(c => c.classList.remove('selected'));
                     card.classList.add('selected');
                     selectedTrack = tr;
+                    
+                    card.after(document.getElementById('playlistsSection'));
                     document.getElementById('playlistsSection').style.display = 'block';
+                    document.getElementById('playlistsSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     
                     document.querySelectorAll('#playlistsList input[type="checkbox"]').forEach(c => c.checked = false);
                     

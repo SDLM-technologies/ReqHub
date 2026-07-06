@@ -414,7 +414,7 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	eventType, _ := payload["eventType"].(string)
-	if eventType == "TrackDownload" || eventType == "Download" {
+	if eventType == "TrackDownload" || eventType == "Download" || eventType == "Upgrade" || eventType == "TrackUpgrade" {
 		// Analyze imported tracks
 		tracksInterface, hasTracks := payload["tracks"].([]interface{})
 		trackFile, hasFile := payload["trackFile"].(map[string]interface{})
@@ -437,6 +437,20 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 			}
 			pendingMutex.Unlock()
 			savePending()
+
+			// Handle Upgrades
+			isUpgrade, _ := payload["isUpgrade"].(bool)
+			deletedFiles, hasDeleted := payload["deletedFiles"].([]interface{})
+			if isUpgrade && hasDeleted {
+				for _, dInter := range deletedFiles {
+					if dMap, ok := dInter.(map[string]interface{}); ok {
+						if oldPath, ok := dMap["path"].(string); ok && oldPath != "" {
+							log.Printf("Upgrading track path in playlists: %s -> %s\n", oldPath, filePath)
+							updatePathInPlaylists(oldPath, filePath)
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -444,6 +458,50 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- Helpers ---
+
+// Updates the path of an audio file in all .m3u playlists (used for upgrades)
+func updatePathInPlaylists(oldAudioPath, newAudioPath string) {
+	configMutex.RLock()
+	musicPath := config.MusicPath
+	configMutex.RUnlock()
+
+	filepath.WalkDir(musicPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || strings.ToLower(filepath.Ext(path)) != ".m3u" {
+			return nil
+		}
+
+		playlistDir := filepath.Dir(path)
+		
+		relOldAudioPath, _ := filepath.Rel(playlistDir, oldAudioPath)
+		relOldAudioPath = filepath.ToSlash(relOldAudioPath)
+		
+		relNewAudioPath, _ := filepath.Rel(playlistDir, newAudioPath)
+		relNewAudioPath = filepath.ToSlash(relNewAudioPath)
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+
+		lines := strings.Split(string(content), "\n")
+		modified := false
+
+		for i, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == relOldAudioPath {
+				lines[i] = strings.Replace(line, trimmed, relNewAudioPath, 1) // preserve leading/trailing whitespace if any
+				modified = true
+			}
+		}
+
+		if modified {
+			out := strings.Join(lines, "\n")
+			os.WriteFile(path, []byte(out), 0644)
+		}
+
+		return nil
+	})
+}
 
 // Synchronizes the presence of the audio path in .m3u files
 func syncPlaylists(audioPath string, checkedPlaylists []string) error {

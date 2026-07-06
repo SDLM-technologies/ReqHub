@@ -88,7 +88,8 @@ For ReqHub to be notified when a download is finished, you must configure Lidarr
 3. Click the **+** icon to add a connection and choose **Webhook**.
 4. Configure it as follows:
    - **Name:** `SDLM ReqHub`
-   - **On Track Import:** ✅ Check this box (this is mandatory!).
+   - **On Release Import:** ✅ Check this box (this is mandatory!).
+   - **On Upgrade:** ✅ Check this box (to automatically update playlists during quality upgrades).
    - **URL:** `http://<YOUR_SERVER_IP>:8080/webhook` (The IP where ReqHub is installed).
    - **Method:** `POST`
 5. Click the **Test** button. You should see a green checkmark proving the communication works.
