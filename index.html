@@ -487,20 +487,23 @@
         async function searchMusic() {
             const q = document.getElementById('searchInput').value;
             if(!q) return;
-            const res = await fetch('/api/search?q=' + encodeURIComponent(q));
-            const tracks = await res.json();
             
             const resultsDiv = document.getElementById('resultsList');
-            resultsDiv.innerHTML = '';
-            document.getElementById('playlistsSection').style.display = 'none';
-            selectedTrack = null;
+            try {
+                const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+                if(!res.ok) throw new Error("iTunes API not responding");
+                const tracks = await res.json();
+                
+                resultsDiv.innerHTML = '';
+                document.getElementById('playlistsSection').style.display = 'none';
+                selectedTrack = null;
 
-            if(!tracks || tracks.length === 0) {
-                resultsDiv.innerHTML = `<span style="color:#aaa;">${t('no_results_itunes')}</span>`;
-                return;
-            }
+                if(!tracks || tracks.length === 0) {
+                    resultsDiv.innerHTML = `<span style="color:#aaa;">${t('no_results_itunes')}</span>`;
+                    return;
+                }
 
-            tracks.forEach(tr => {
+                tracks.forEach(tr => {
                 const card = document.createElement('div');
                 card.className = 'track-card';
                 card.innerHTML = `
@@ -578,13 +581,18 @@
                     })
                 });
                 let data = {};
-                try { data = await res.json(); } catch(e) {}
+                let isJson = false;
+                try { data = await res.json(); isJson = true; } catch(e) {}
                 
-                if(res.ok) {
+                if(res.ok && isJson) {
                     const msg = data.status === 'pending' ? t('added_pending') : t('added_success');
                     showToast(msg, data.status === 'added' ? 'var(--success)' : 'var(--secondary)');
                 } else {
-                    showToast(t('error_adding'), "var(--error)");
+                    let errMsg = t('error_adding');
+                    if(!isJson && !res.ok) {
+                        try { errMsg = data; /* It might be a text if json failed but we can't extract it easily like this */ } catch(e){}
+                    }
+                    showToast(errMsg, "var(--error)");
                 }
             } catch(e) {
                 showToast(t('conn_error'), "var(--error)");
@@ -773,18 +781,21 @@
         async function searchMusicForPlaylist() {
             const q = document.getElementById('playlistSearchInput').value;
             if(!q) return;
-            const res = await fetch('/api/search?q=' + encodeURIComponent(q));
-            const tracks = await res.json();
-            
             const resultsDiv = document.getElementById('playlistSearchResultsList');
-            resultsDiv.innerHTML = '';
+            
+            try {
+                const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+                if(!res.ok) throw new Error("API Error");
+                const tracks = await res.json();
+                
+                resultsDiv.innerHTML = '';
 
-            if(!tracks || tracks.length === 0) {
-                resultsDiv.innerHTML = `<span style="color:#aaa;">${t('no_results')}</span>`;
-                return;
-            }
+                if(!tracks || tracks.length === 0) {
+                    resultsDiv.innerHTML = `<span style="color:#aaa;">${t('no_results')}</span>`;
+                    return;
+                }
 
-            tracks.forEach(tr => {
+                tracks.forEach(tr => {
                 const card = document.createElement('div');
                 card.className = 'track-card';
                 card.innerHTML = `
@@ -797,6 +808,10 @@
                 card.onclick = () => addMusicToCurrentPlaylist(tr, card);
                 resultsDiv.appendChild(card);
             });
+            } catch(e) {
+                resultsDiv.innerHTML = `<span style="color:var(--error);">Erreur: L'API iTunes ne répond pas.</span>`;
+                showToast("Erreur iTunes API: " + e.message, "var(--error)");
+            }
         }
 
         async function addMusicToCurrentPlaylist(track, cardElement) {
