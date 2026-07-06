@@ -20,6 +20,14 @@ The application allows you to search for a specific track, trigger its download 
 
 ---
 
+## 🤖 About this Code (Disclaimer)
+
+This project was built using an AI assistant (it was **"vibe coded"**). While the core architecture, logic, and features were mainly conceived and designed by me, I do not personally know the specific nomenclature or syntax of Go, HTML, JS, or CSS. 
+
+Therefore, if you are a developer and you spot any non-standard practices, bugs, or errors in the code, please do not hesitate to open a Pull Request or an Issue. Contributions and corrections are more than welcome!
+
+---
+
 ## 🚀 Deployment Guide
 
 You can deploy SDLM ReqHub easily using Docker Compose.
@@ -104,3 +112,5 @@ The application will automatically handle everything else!
 - `docker-compose.yml` : Docker deployment configuration.
 - `.github/workflows/` : CI/CD pipeline to automatically build and publish the Docker image to GHCR.
 - `data/` : Automatically created folder containing your configuration (`config.json`) and pending tracks (`pending_tracks.json`).
+
+
