@@ -4,17 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SDLM ReqHub</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDwhLS0gQmFja2dyb3VuZCBUYXJnZXQgUmluZ3MgLS0+CiAgICA8ZyBpZD0idGFyZ2V0Ij4KICAgICAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDgiIGZpbGw9IndoaXRlIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjAuNSIgLz4KICAgICAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMC41IiAvPgogICAgICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIwLjUiIC8+CiAgICAgIDxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjI3IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjAuNSIgLz4KICAgICAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMC41IiAvPgogICAgPC9nPgoKICAgIDwhLS0gQmlvaGF6YXJkIE1hc2sgKEN1dHMgaW5uZXIgY2lyY2xlcyBhbmQgZ2FwcykgLS0+CiAgICA8bWFzayBpZD0iYmlvLWxvYmVzLW1hc2siPgogICAgICA8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0id2hpdGUiIC8+CiAgICAgIAogICAgICA8IS0tIElubmVyIGN1dG91dHMgLS0+CiAgICAgIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzQiIHI9IjE0IiBmaWxsPSJibGFjayIgLz4KICAgICAgPGNpcmNsZSBjeD0iNjMuODYiIGN5PSI1OCIgcj0iMTQiIGZpbGw9ImJsYWNrIiAvPgogICAgICA8Y2lyY2xlIGN4PSIzNi4xNCIgY3k9IjU4IiByPSIxNCIgZmlsbD0iYmxhY2siIC8+CiAgICAgIAogICAgICA8IS0tIEdhcHMgYmV0d2VlbiBjbGF3cyAtLT4KICAgICAgPGxpbmUgeDE9IjUwIiB5MT0iNTAiIHgyPSI1MCIgeTI9IjEwMCIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIyLjUiIC8+CiAgICAgIDxsaW5lIHgxPSI1MCIgeTE9IjUwIiB4Mj0iNi43IiB5Mj0iMjUiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMi41IiAvPgogICAgICA8bGluZSB4MT0iNTAiIHkxPSI1MCIgeDI9IjkzLjMiIHkyPSIyNSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIyLjUiIC8+CiAgICA8L21hc2s+CgogICAgPCEtLSBDb25uZWN0aW9uIFJpbmcgTWFzayAoQ3V0cyBvbmx5IHRoZSBnYXBzKSAtLT4KICAgIDxtYXNrIGlkPSJiaW8tcmluZy1tYXNrIj4KICAgICAgPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IndoaXRlIiAvPgogICAgICA8bGluZSB4MT0iNTAiIHkxPSI1MCIgeDI9IjUwIiB5Mj0iMTAwIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIuNSIgLz4KICAgICAgPGxpbmUgeDE9IjUwIiB5MT0iNTAiIHgyPSI2LjciIHkyPSIyNSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIyLjUiIC8+CiAgICAgIDxsaW5lIHgxPSI1MCIgeTE9IjUwIiB4Mj0iOTMuMyIgeTI9IjI1IiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIuNSIgLz4KICAgIDwvbWFzaz4KICA8L2RlZnM+CgogIDwhLS0gMS4gVGFyZ2V0IEJhY2tncm91bmQgLS0+CiAgPHVzZSBocmVmPSIjdGFyZ2V0IiAvPgoKICA8IS0tIDIuIEJpb2hhemFyZCBDbGF3cyAoT3V0ZXIgbG9iZXMpIC0tPgogIDxnIG1hc2s9InVybCgjYmlvLWxvYmVzLW1hc2spIj4KICAgIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzQiIHI9IjIyIiBmaWxsPSIjOWMyN2IwIiAvPgogICAgPGNpcmNsZSBjeD0iNjMuODYiIGN5PSI1OCIgcj0iMjIiIGZpbGw9IiM5YzI3YjAiIC8+CiAgICA8Y2lyY2xlIGN4PSIzNi4xNCIgY3k9IjU4IiByPSIyMiIgZmlsbD0iIzljMjdiMCIgLz4KICA8L2c+CgogIDwhLS0gMy4gQmlvaGF6YXJkIENvbm5lY3Rpb24gUmluZyAtLT4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIxNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOWMyN2IwIiBzdHJva2Utd2lkdGg9IjMiIG1hc2s9InVybCgjYmlvLXJpbmctbWFzaykiIC8+CgogIDwhLS0gNC4gRm9yZWdyb3VuZCBSZWQgQ2lyY2xlIFRhcmdldCAtLT4KICA8ZyBpZD0iY2VudGVyLXJlZC10YXJnZXQiPgogICAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMTAiIGZpbGw9IiNlNTM5MzUiIHN0cm9rZT0iI2I3MWMxYyIgc3Ryb2tlLXdpZHRoPSIxIiAvPgogICAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjAuNSIgb3BhY2l0eT0iMC42IiAvPgogICAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjAuNSIgb3BhY2l0eT0iMC42IiAvPgogICAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMS41IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIwLjgiIC8+CiAgPC9nPgo8L3N2Zz4K">
     <style>
         :root {
-            --bg: #121212;
-            --bg-card: #1e1e24;
-            --text: #e0e0e0;
-            --primary: #9b51e0;
-            --secondary: #f2c94c;
-            --hover: #bb86fc;
+            --bg: #f5f5f5;
+            --bg-card: #ffffff;
+            --text: #121212;
+            --primary: #9c27b0;
+            --secondary: #e53935;
+            --hover: #7b1fa2;
             --success: #2e7d32;
             --error: #c62828;
+            --border: #cccccc;
+            --input-bg: #ffffff;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #121212;
+                --bg-card: #1e1e24;
+                --text: #e0e0e0;
+                --border: #333333;
+                --input-bg: #222222;
+                --hover: #ba68c8;
+            }
         }
         body {
             background-color: var(--bg);
@@ -44,7 +56,7 @@
             width: 100%; max-width: 600px; display: flex; gap: 10px; margin-bottom: 20px;
         }
         input[type="text"], select {
-            flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #222; color: white;
+            flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text);
             font-size: 1rem;
         }
         input[type="text"]:focus, select:focus { outline: none; border-color: var(--primary); }
@@ -133,7 +145,7 @@
 
     <header>
         <div style="display: flex; align-items: center; gap: 15px;">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width: 50px; height: 50px; filter: drop-shadow(0 0 8px rgba(156, 39, 176, 0.5));">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="width: 75px; height: 75px; filter: drop-shadow(0 0 8px rgba(156, 39, 176, 0.5));">
               <defs>
                 <g id="target">
                   <circle cx="50" cy="50" r="48" fill="white" stroke="black" stroke-width="0.5" />
