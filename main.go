@@ -463,6 +463,9 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
+
+			// Trigger Navidrome scan
+			go startNavidromeScan()
 		}
 	}
 
@@ -898,4 +901,25 @@ func deletePlaylistFromNavidrome(playlistFileName string) {
 	// Delete Playlist
 	delURL := fmt.Sprintf("%s/rest/deletePlaylist?id=%s&u=%s&t=%s&s=%s&v=1.16.1&c=SDLMReqHub&f=json", strings.TrimRight(nUrl, "/"), targetId, url.QueryEscape(nUser), token, salt)
 	http.Get(delURL)
+}
+
+// Helper to start a Navidrome scan via Subsonic API
+func startNavidromeScan() {
+	configMutex.RLock()
+	nUrl := config.NaviUrl
+	nUser := config.NaviUser
+	nPass := config.NaviPass
+	configMutex.RUnlock()
+
+	if nUrl == "" || nUser == "" || nPass == "" {
+		return // Not configured
+	}
+
+	salt := "sdlm123"
+	hash := md5.Sum([]byte(nPass + salt))
+	token := hex.EncodeToString(hash[:])
+	
+	// Start Scan
+	scanURL := fmt.Sprintf("%s/rest/startScan?u=%s&t=%s&s=%s&v=1.16.1&c=SDLMReqHub&f=json", strings.TrimRight(nUrl, "/"), url.QueryEscape(nUser), token, salt)
+	http.Get(scanURL)
 }

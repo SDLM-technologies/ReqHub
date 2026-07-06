@@ -273,7 +273,7 @@
                 error_deleting: "Error while deleting",
                 playlist_deleted: "Playlist deleted",
                 confirm_remove: "Are you sure you want to remove this track from the playlist?",
-                confirm_delete: "Are you sure you want to permanently delete this playlist (the .m3u file)?",
+                confirm_delete: "Are you sure you want to permanently delete this playlist (the .m3u file)?\n\nType the playlist name without extension to confirm:\n",
                 remove_tooltip: "Remove track"
             },
             fr: {
@@ -321,7 +321,7 @@
                 error_deleting: "Erreur lors de la suppression",
                 playlist_deleted: "Playlist supprimée",
                 confirm_remove: "Voulez-vous vraiment retirer cette musique de la playlist ?",
-                confirm_delete: "Voulez-vous vraiment supprimer définitivement cette playlist (le fichier .m3u) ?",
+                confirm_delete: "Voulez-vous vraiment supprimer définitivement cette playlist (le fichier .m3u) ?\n\nTapez le nom de la playlist sans l'extension pour confirmer :\n",
                 remove_tooltip: "Supprimer la musique"
             },
             de: {
@@ -365,7 +365,7 @@
                 error_deleting: "Fehler beim Löschen",
                 playlist_deleted: "Playlist gelöscht",
                 confirm_remove: "Möchten Sie diesen Titel wirklich aus der Playlist entfernen?",
-                confirm_delete: "Möchten Sie diese Playlist (die .m3u Datei) wirklich endgültig löschen?",
+                confirm_delete: "Möchten Sie diese Playlist (die .m3u Datei) wirklich endgültig löschen?\n\nGeben Sie den Playlist-Namen ohne Erweiterung ein, um zu bestätigen:\n",
                 remove_tooltip: "Titel entfernen"
             }
         };
@@ -781,7 +781,12 @@
         }
 
         async function deleteCurrentPlaylist() {
-            if(!confirm(t('confirm_delete'))) return;
+            const cleanName = currentPlaylistName.replace(/\.m3u8?$/i, '');
+            const input = prompt(t('confirm_delete') + cleanName);
+            if (input !== cleanName) {
+                if (input !== null) alert("Annulé: Nom incorrect / Cancelled: Incorrect name.");
+                return;
+            }
             try {
                 const res = await fetch('/api/playlist/delete', {
                     method: 'POST',
