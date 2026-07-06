@@ -80,9 +80,11 @@ services:
 3. Fill in the form:
    - **Lidarr URL:** The complete address of your Lidarr instance (e.g., `http://192.168.1.50:8686`).
    - **Lidarr API Key:** Retrieve this from your Lidarr interface (*Settings > General > Security > API Key*).
-   - **NAS Music Folder (Absolute):** The absolute path to your music folder inside the ReqHub container (e.g. `/Navidrome/media/musique`).
+   - **NAS Music Folder (Absolute):** The absolute path to your music folder inside the ReqHub container (e.g. `/Navidrome/media/music`).
+   - **NAS Playlists Folder (Absolute):** The absolute path where playlists will be stored (e.g. `/Navidrome/media/playlist`). You can set this identical to the music folder if you prefer them together.
      > [!IMPORTANT]
-     > This path must be **IDENTICAL** to the path Lidarr uses internally! If Lidarr downloads to `/Navidrome/media/musique/...`, you MUST write `/Navidrome/media/musique` here, and your `docker-compose.yml` volume must map to this exact same internal path.
+     > These paths must be **IDENTICAL** to the paths Lidarr and Navidrome use internally! Your `docker-compose.yml` volume must map to these exact same internal paths so that ReqHub can generate correct relative links.
+     > **Example:** If Lidarr downloads to `/Navidrome/media/music/...`, you MUST write `/Navidrome/media/music` here, and your `docker-compose.yml` volume must map to this exact same internal path.
 4. Click **Save**.
 
 ### Step 4: Lidarr Webhook Configuration

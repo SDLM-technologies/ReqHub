@@ -17,10 +17,11 @@ import (
 
 // --- Configuration ---
 type Config struct {
-	LidarrURL string `json:"lidarrUrl"`
-	LidarrKey string `json:"lidarrKey"`
-	MusicPath string `json:"musicPath"`
-	Language  string `json:"language"`
+	LidarrURL     string `json:"lidarrUrl"`
+	LidarrKey     string `json:"lidarrKey"`
+	MusicPath     string `json:"musicPath"`
+	PlaylistsPath string `json:"playlistsPath"`
+	Language      string `json:"language"`
 }
 
 var config Config
@@ -114,8 +115,12 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		// Ensure the music path ends cleanly
+		// Ensure the paths end cleanly
 		newConfig.MusicPath = filepath.Clean(newConfig.MusicPath)
+		newConfig.PlaylistsPath = filepath.Clean(newConfig.PlaylistsPath)
+		if newConfig.PlaylistsPath == "" {
+			newConfig.PlaylistsPath = newConfig.MusicPath
+		}
 		configMutex.Lock()
 		config = newConfig
 		configMutex.Unlock()
@@ -128,22 +133,22 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 
 func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 	configMutex.RLock()
-	musicPath := config.MusicPath
+	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
-	if musicPath == "" {
+	if playlistsPath == "" {
 		json.NewEncoder(w).Encode([]string{})
 		return
 	}
 
 	var playlists []string
-	filepath.WalkDir(musicPath, func(path string, d fs.DirEntry, err error) error {
+	filepath.WalkDir(playlistsPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // Ignore access errors
 		}
 		ext := strings.ToLower(filepath.Ext(path))
 		if !d.IsDir() && (ext == ".m3u" || ext == ".m3u8") {
-			rel, _ := filepath.Rel(musicPath, path)
+			rel, _ := filepath.Rel(playlistsPath, path)
 			playlists = append(playlists, rel)
 		}
 		return nil
@@ -256,11 +261,11 @@ func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	configMutex.RLock()
-	musicPath := config.MusicPath
+	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
 	var existingPlaylists []string
-	filepath.WalkDir(musicPath, func(path string, d fs.DirEntry, err error) error {
+	filepath.WalkDir(playlistsPath, func(path string, d fs.DirEntry, err error) error {
 		ext := strings.ToLower(filepath.Ext(path))
 		if err != nil || d.IsDir() || (ext != ".m3u" && ext != ".m3u8") {
 			return nil
@@ -275,7 +280,7 @@ func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 			lines := strings.Split(string(content), "\n")
 			for _, line := range lines {
 				if strings.TrimSpace(line) == relAudioPath {
-					relPlaylistPath, _ := filepath.Rel(musicPath, path)
+					relPlaylistPath, _ := filepath.Rel(playlistsPath, path)
 					existingPlaylists = append(existingPlaylists, relPlaylistPath)
 					break
 				}
@@ -464,10 +469,10 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 // Updates the path of an audio file in all .m3u playlists (used for upgrades)
 func updatePathInPlaylists(oldAudioPath, newAudioPath string) {
 	configMutex.RLock()
-	musicPath := config.MusicPath
+	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
-	filepath.WalkDir(musicPath, func(path string, d fs.DirEntry, err error) error {
+	filepath.WalkDir(playlistsPath, func(path string, d fs.DirEntry, err error) error {
 		ext := strings.ToLower(filepath.Ext(path))
 		if err != nil || d.IsDir() || (ext != ".m3u" && ext != ".m3u8") {
 			return nil
@@ -509,7 +514,7 @@ func updatePathInPlaylists(oldAudioPath, newAudioPath string) {
 // Synchronizes the presence of the audio path in .m3u files
 func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 	configMutex.RLock()
-	musicPath := config.MusicPath
+	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
 	checkedMap := make(map[string]bool)
@@ -517,13 +522,13 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 		checkedMap[p] = true
 	}
 
-	return filepath.WalkDir(musicPath, func(path string, d fs.DirEntry, err error) error {
+	return filepath.WalkDir(playlistsPath, func(path string, d fs.DirEntry, err error) error {
 		ext := strings.ToLower(filepath.Ext(path))
 		if err != nil || d.IsDir() || (ext != ".m3u" && ext != ".m3u8") {
 			return nil
 		}
 
-		relPlaylistPath, _ := filepath.Rel(musicPath, path)
+		relPlaylistPath, _ := filepath.Rel(playlistsPath, path)
 		shouldBeInPlaylist := checkedMap[relPlaylistPath]
 
 		playlistDir := filepath.Dir(path)
@@ -648,10 +653,10 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	configMutex.RLock()
-	musicPath := config.MusicPath
+	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
-	fullPath := filepath.Join(musicPath, name)
+	fullPath := filepath.Join(playlistsPath, name)
 	
 	if _, err := os.Stat(fullPath); err == nil {
 		http.Error(w, "Playlist already exists", http.StatusConflict)
@@ -678,10 +683,10 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 	}
 
 	configMutex.RLock()
-	musicPath := config.MusicPath
+	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
-	fullPath := filepath.Join(musicPath, name)
+	fullPath := filepath.Join(playlistsPath, name)
 
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
@@ -751,10 +756,10 @@ func handlePlaylistRemoveTrack(w http.ResponseWriter, r *http.Request) {
 	}
 
 	configMutex.RLock()
-	musicPath := config.MusicPath
+	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
-	fullPath := filepath.Join(musicPath, req.Playlist)
+	fullPath := filepath.Join(playlistsPath, req.Playlist)
 
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
@@ -813,10 +818,10 @@ func handlePlaylistDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	configMutex.RLock()
-	musicPath := config.MusicPath
+	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
-	fullPath := filepath.Join(musicPath, req.Playlist)
+	fullPath := filepath.Join(playlistsPath, req.Playlist)
 
 	if err := os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		http.Error(w, "Delete error", http.StatusInternalServerError)

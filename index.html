@@ -201,6 +201,8 @@
             <input type="text" id="lidarrKey" placeholder="xxxxxxxxxxxxxxx">
             <label data-i18n="music_path">NAS Music Folder (Absolute)</label>
             <input type="text" id="musicPath" placeholder="/mnt/pool/media/music">
+            <label data-i18n="playlists_path">NAS Playlists Folder (Absolute)</label>
+            <input type="text" id="playlistsPath" placeholder="/mnt/pool/media/playlist">
             <label data-i18n="language">Language</label>
             <select id="langSelect">
                 <option value="en">English</option>
@@ -236,6 +238,7 @@
                 lidarr_url: "Lidarr URL",
                 lidarr_key: "Lidarr API Key",
                 music_path: "NAS Music Folder (Absolute)",
+                playlists_path: "NAS Playlists Folder (Absolute)",
                 language: "Language",
                 cancel_btn: "Cancel",
                 save_btn: "Save",
@@ -280,6 +283,7 @@
                 lidarr_url: "URL Lidarr",
                 lidarr_key: "Clé API Lidarr",
                 music_path: "Dossier Musique NAS (Absolu)",
+                playlists_path: "Dossier Playlists NAS (Absolu)",
                 language: "Langue",
                 cancel_btn: "Annuler",
                 save_btn: "Enregistrer",
@@ -574,6 +578,7 @@
                 document.getElementById('lidarrUrl').value = conf.lidarrUrl || '';
                 document.getElementById('lidarrKey').value = conf.lidarrKey || '';
                 document.getElementById('musicPath').value = conf.musicPath || '';
+                document.getElementById('playlistsPath').value = conf.playlistsPath || conf.musicPath || '';
                 document.getElementById('langSelect').value = conf.language || 'en';
             } catch(e) {}
             document.getElementById('settingsModal').style.display = 'flex';
@@ -588,6 +593,7 @@
                 lidarrUrl: document.getElementById('lidarrUrl').value,
                 lidarrKey: document.getElementById('lidarrKey').value,
                 musicPath: document.getElementById('musicPath').value,
+                playlistsPath: document.getElementById('playlistsPath').value,
                 language: document.getElementById('langSelect').value
             };
             await fetch('/api/settings', {
