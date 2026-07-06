@@ -141,7 +141,8 @@ func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil // Ignore access errors
 		}
-		if !d.IsDir() && strings.ToLower(filepath.Ext(path)) == ".m3u" {
+		ext := strings.ToLower(filepath.Ext(path))
+		if !d.IsDir() && (ext == ".m3u" || ext == ".m3u8") {
 			rel, _ := filepath.Rel(musicPath, path)
 			playlists = append(playlists, rel)
 		}
@@ -260,7 +261,8 @@ func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 
 	var existingPlaylists []string
 	filepath.WalkDir(musicPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.ToLower(filepath.Ext(path)) != ".m3u" {
+		ext := strings.ToLower(filepath.Ext(path))
+		if err != nil || d.IsDir() || (ext != ".m3u" && ext != ".m3u8") {
 			return nil
 		}
 		
@@ -466,7 +468,8 @@ func updatePathInPlaylists(oldAudioPath, newAudioPath string) {
 	configMutex.RUnlock()
 
 	filepath.WalkDir(musicPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.ToLower(filepath.Ext(path)) != ".m3u" {
+		ext := strings.ToLower(filepath.Ext(path))
+		if err != nil || d.IsDir() || (ext != ".m3u" && ext != ".m3u8") {
 			return nil
 		}
 
@@ -515,7 +518,8 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 	}
 
 	return filepath.WalkDir(musicPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.ToLower(filepath.Ext(path)) != ".m3u" {
+		ext := strings.ToLower(filepath.Ext(path))
+		if err != nil || d.IsDir() || (ext != ".m3u" && ext != ".m3u8") {
 			return nil
 		}
 
@@ -626,7 +630,8 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid name", http.StatusBadRequest)
 		return
 	}
-	if !strings.HasSuffix(strings.ToLower(name), ".m3u") {
+	lowName := strings.ToLower(name)
+	if !strings.HasSuffix(lowName, ".m3u") && !strings.HasSuffix(lowName, ".m3u8") {
 		name += ".m3u"
 	}
 	
