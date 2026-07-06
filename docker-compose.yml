@@ -9,9 +9,10 @@ services:
     environment:
       - TZ=Europe/Paris
     volumes:
-      # /!\ MODIFIEZ le chemin de gauche par le chemin absolu de votre dossier de musique sur TrueNAS.
-      # /!\ Ce chemin DOIT être exactement le même que celui que vous renseignerez dans les paramètres de l'app.
-      - /mnt/votre_pool/dossier_musique:/music:rw
+      # /!\ Le chemin de gauche ET de droite doivent être IDENTIQUES.
+      # /!\ Ex: - /mnt/pool/music:/mnt/pool/music:rw
+      # /!\ Cela doit correspondre exactement au chemin que Lidarr connait.
+      - /mnt/votre_pool/dossier_musique:/mnt/votre_pool/dossier_musique:rw
       
       # Dossier local pour sauvegarder la configuration (URL, Clé API, pending tracks)
       - ./data:/app/data

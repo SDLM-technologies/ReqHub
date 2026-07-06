@@ -48,9 +48,10 @@ services:
     environment:
       - TZ=Europe/Paris
     volumes:
-      # /!\ REPLACE the left path with the absolute path to your music folder on your server/NAS.
-      # /!\ This MUST be exactly the same path you enter in the app settings later.
-      - /mnt/your_pool/music_folder:/music:rw
+      # /!\ The left path AND the right path MUST BE IDENTICAL.
+      # /!\ E.g. - /mnt/pool/music:/mnt/pool/music:rw
+      # /!\ This path must exactly match the path that Lidarr knows and uses.
+      - /mnt/your_pool/music_folder:/mnt/your_pool/music_folder:rw
       
       # Local folder to save the configuration
       - ./data:/app/data
@@ -79,7 +80,7 @@ services:
 3. Fill in the form:
    - **Lidarr URL:** The complete address of your Lidarr instance (e.g., `http://192.168.1.50:8686`).
    - **Lidarr API Key:** Retrieve this from your Lidarr interface (*Settings > General > Security > API Key*).
-   - **NAS Music Folder (Absolute):** The folder path **inside the Docker container**. If you didn't change the right side of the volume mapping in docker-compose, this is `/music`.
+   - **NAS Music Folder (Absolute):** The absolute path to your music folder (e.g. `/mnt/your_pool/music_folder`). This must perfectly match the volume mapping in your `docker-compose.yml`.
 4. Click **Save**.
 
 ### Step 4: Lidarr Webhook Configuration
