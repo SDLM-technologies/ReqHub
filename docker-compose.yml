@@ -7,11 +7,9 @@ services:
     environment:
       - TZ=Europe/Paris
     volumes:
-      # /!\ The left AND right paths MUST BE IDENTICAL.
-      # /!\ E.g. - /mnt/pool/music:/mnt/pool/music:rw
-      # /!\ This must perfectly match the path that Lidarr knows.
+      # CRITICAL: The right side of this mapping MUST EXACTLY MATCH the internal path Lidarr uses for music!
+      # Example: If Lidarr sees music at `/Navidrome/media/musique`, this must be `- /your/real/nas/path:/Navidrome/media/musique:rw`
       - /mnt/your_pool/music_folder:/mnt/your_pool/music_folder:rw
-
       # Local folder to save the configuration (URL, API Key, pending tracks)
       - ./data:/app/data
     restart: unless-stopped

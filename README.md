@@ -62,6 +62,8 @@ services:
 1. Open your Dockge or Portainer interface.
 2. Create a new Stack/Compose.
 3. Paste the `docker-compose.yml` content and adapt your volume paths.
+   > [!IMPORTANT]
+   > The internal path (right side of the `:`) in your volume mapping **MUST EXACTLY MATCH** the internal path Lidarr uses to store your music. If Lidarr sees music at `/Navidrome/media/musique`, your mapping must be `- /your/real/nas/path:/Navidrome/media/musique:rw`. If they don't match, playlists will have broken paths!
 4. Deploy!
 
 **Option B: Via SSH (Classic)**
@@ -78,7 +80,9 @@ services:
 3. Fill in the form:
    - **Lidarr URL:** The complete address of your Lidarr instance (e.g., `http://192.168.1.50:8686`).
    - **Lidarr API Key:** Retrieve this from your Lidarr interface (*Settings > General > Security > API Key*).
-   - **NAS Music Folder (Absolute):** The absolute path to your music folder (e.g. `/mnt/your_pool/music_folder`). This must perfectly match the volume mapping in your `docker-compose.yml`.
+   - **NAS Music Folder (Absolute):** The absolute path to your music folder inside the ReqHub container (e.g. `/Navidrome/media/musique`).
+     > [!IMPORTANT]
+     > This path must be **IDENTICAL** to the path Lidarr uses internally! If Lidarr downloads to `/Navidrome/media/musique/...`, you MUST write `/Navidrome/media/musique` here, and your `docker-compose.yml` volume must map to this exact same internal path.
 4. Click **Save**.
 
 ### Step 4: Lidarr Webhook Configuration
