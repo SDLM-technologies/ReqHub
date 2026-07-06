@@ -85,6 +85,9 @@ services:
      > [!IMPORTANT]
      > These paths must be **IDENTICAL** to the paths Lidarr and Navidrome use internally! Your `docker-compose.yml` volume must map to these exact same internal paths so that ReqHub can generate correct relative links.
      > **Example:** If Lidarr downloads to `/Navidrome/media/music/...`, you MUST write `/Navidrome/media/music` here, and your `docker-compose.yml` volume must map to this exact same internal path.
+   - **Navidrome URL / User / Password (Optional):** 
+     - **Why connect it?** If provided, ReqHub will use the Subsonic API to automatically delete playlists from Navidrome's internal database when you delete them from ReqHub's UI.
+     - **Why skip it?** It is **NOT** mandatory for ReqHub to work. In fact, leaving these fields empty adds a layer of security: if you accidentally delete a playlist in ReqHub, Navidrome will still keep a safe copy of it in its internal database!
 4. Click **Save**.
 
 ### Step 4: Lidarr Webhook Configuration

@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,6 +23,9 @@ type Config struct {
 	LidarrKey     string `json:"lidarrKey"`
 	MusicPath     string `json:"musicPath"`
 	PlaylistsPath string `json:"playlistsPath"`
+	NaviUrl       string `json:"naviUrl"`
+	NaviUser      string `json:"naviUser"`
+	NaviPass      string `json:"naviPass"`
 	Language      string `json:"language"`
 }
 
@@ -827,5 +832,70 @@ func handlePlaylistDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Delete error", http.StatusInternalServerError)
 		return
 	}
+
+	go deletePlaylistFromNavidrome(req.Playlist)
+
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+// Helper to delete playlist from Navidrome via Subsonic API
+func deletePlaylistFromNavidrome(playlistFileName string) {
+	configMutex.RLock()
+	nUrl := config.NaviUrl
+	nUser := config.NaviUser
+	nPass := config.NaviPass
+	configMutex.RUnlock()
+
+	if nUrl == "" || nUser == "" || nPass == "" {
+		return // Not configured
+	}
+
+	playlistName := strings.TrimSuffix(playlistFileName, filepath.Ext(playlistFileName))
+
+	salt := "sdlm123"
+	hash := md5.Sum([]byte(nPass + salt))
+	token := hex.EncodeToString(hash[:])
+	
+	// Get Playlists
+	getURL := fmt.Sprintf("%s/rest/getPlaylists?u=%s&t=%s&s=%s&v=1.16.1&c=SDLMReqHub&f=json", strings.TrimRight(nUrl, "/"), url.QueryEscape(nUser), token, salt)
+	
+	resp, err := http.Get(getURL)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return
+	}
+
+	root, ok := result["subsonic-response"].(map[string]interface{})
+	if !ok { return }
+	
+	playlistsData, ok := root["playlists"].(map[string]interface{})
+	if !ok { return }
+	
+	playlistList, ok := playlistsData["playlist"].([]interface{})
+	if !ok { return }
+
+	var targetId string
+	for _, p := range playlistList {
+		if pMap, ok := p.(map[string]interface{}); ok {
+			if name, ok := pMap["name"].(string); ok && strings.EqualFold(name, playlistName) {
+				if id, ok := pMap["id"].(string); ok {
+					targetId = id
+					break
+				}
+			}
+		}
+	}
+
+	if targetId == "" {
+		return // Not found
+	}
+
+	// Delete Playlist
+	delURL := fmt.Sprintf("%s/rest/deletePlaylist?id=%s&u=%s&t=%s&s=%s&v=1.16.1&c=SDLMReqHub&f=json", strings.TrimRight(nUrl, "/"), targetId, url.QueryEscape(nUser), token, salt)
+	http.Get(delURL)
 }

@@ -203,6 +203,14 @@
             <input type="text" id="musicPath" placeholder="/mnt/pool/media/music">
             <label data-i18n="playlists_path">NAS Playlists Folder (Absolute)</label>
             <input type="text" id="playlistsPath" placeholder="/mnt/pool/media/playlist">
+            
+            <hr style="border: 0; border-top: 1px solid #444; margin: 15px 0;">
+            <label data-i18n="navi_url">Navidrome URL (Optional)</label>
+            <input type="text" id="naviUrl" placeholder="http://192.168.x.x:4533">
+            <label data-i18n="navi_user">Navidrome Username (Optional)</label>
+            <input type="text" id="naviUser" placeholder="admin">
+            <label data-i18n="navi_pass">Navidrome Password (Optional)</label>
+            <input type="password" id="naviPass" placeholder="password">
             <label data-i18n="language">Language</label>
             <select id="langSelect">
                 <option value="en">English</option>
@@ -239,6 +247,9 @@
                 lidarr_key: "Lidarr API Key",
                 music_path: "NAS Music Folder (Absolute)",
                 playlists_path: "NAS Playlists Folder (Absolute)",
+                navi_url: "Navidrome URL (Optional)",
+                navi_user: "Navidrome Username (Optional)",
+                navi_pass: "Navidrome Password (Optional)",
                 language: "Language",
                 cancel_btn: "Cancel",
                 save_btn: "Save",
@@ -284,6 +295,9 @@
                 lidarr_key: "Clé API Lidarr",
                 music_path: "Dossier Musique NAS (Absolu)",
                 playlists_path: "Dossier Playlists NAS (Absolu)",
+                navi_url: "URL Navidrome (Optionnel)",
+                navi_user: "Nom d'utilisateur Navidrome (Optionnel)",
+                navi_pass: "Mot de passe Navidrome (Optionnel)",
                 language: "Langue",
                 cancel_btn: "Annuler",
                 save_btn: "Enregistrer",
@@ -610,6 +624,9 @@
                 document.getElementById('lidarrKey').value = conf.lidarrKey || '';
                 document.getElementById('musicPath').value = conf.musicPath || '';
                 document.getElementById('playlistsPath').value = conf.playlistsPath || conf.musicPath || '';
+                document.getElementById('naviUrl').value = conf.naviUrl || '';
+                document.getElementById('naviUser').value = conf.naviUser || '';
+                document.getElementById('naviPass').value = conf.naviPass || '';
                 document.getElementById('langSelect').value = conf.language || 'en';
             } catch(e) {}
             document.getElementById('settingsModal').style.display = 'flex';
@@ -625,6 +642,9 @@
                 lidarrKey: document.getElementById('lidarrKey').value,
                 musicPath: document.getElementById('musicPath').value,
                 playlistsPath: document.getElementById('playlistsPath').value,
+                naviUrl: document.getElementById('naviUrl').value,
+                naviUser: document.getElementById('naviUser').value,
+                naviPass: document.getElementById('naviPass').value,
                 language: document.getElementById('langSelect').value
             };
             await fetch('/api/settings', {
