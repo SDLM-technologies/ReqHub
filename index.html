@@ -571,6 +571,10 @@
                 };
                 resultsDiv.appendChild(card);
             });
+            } catch(e) {
+                resultsDiv.innerHTML = `<span style="color:var(--error);">Erreur: L'API iTunes ne répond pas.</span>`;
+                showToast("Erreur iTunes API: " + e.message, "var(--error)");
+            }
         }
 
         async function addMusic() {
