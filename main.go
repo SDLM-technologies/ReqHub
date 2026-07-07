@@ -1118,7 +1118,7 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 
 		items = append(items, PlaylistItem{
 			Line:    trimmed,
-			Display: title, // Kept for backwards compatibility
+			Display: display, // Kept for backwards compatibility
 			Title:   title,
 			Artist:  artist,
 			Album:   album,
