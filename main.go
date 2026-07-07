@@ -152,19 +152,22 @@ func handleCover(w http.ResponseWriter, r *http.Request) {
 	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
-	var dir string
-	if playlistName != "" && !strings.Contains(playlistName, "..") {
+	var fullAudioPath string
+	if filepath.IsAbs(audioPath) {
+		fullAudioPath = audioPath
+	} else if playlistName != "" && !strings.Contains(playlistName, "..") {
 		playlistDir := filepath.Dir(filepath.Join(playlistsPath, playlistName))
-		dir = filepath.Dir(filepath.Join(playlistDir, audioPath))
+		fullAudioPath = filepath.Join(playlistDir, audioPath)
 	} else {
 		if strings.Contains(audioPath, "..") {
 			http.Error(w, "Invalid path", http.StatusBadRequest)
 			return
 		}
-		dir = filepath.Dir(filepath.Join(musicPath, audioPath))
+		fullAudioPath = filepath.Join(musicPath, audioPath)
 	}
+	dir := filepath.Dir(fullAudioPath)
 
-	covers := []string{"cover.jpg", "cover.png", "folder.jpg", "folder.png"}
+	covers := []string{"cover.jpg", "cover.png", "folder.jpg", "folder.png", "Cover.jpg", "Cover.png", "Folder.jpg", "Folder.png", "cover.JPG", "folder.JPG"}
 	for _, c := range covers {
 		coverPath := filepath.Join(dir, c)
 		if _, err := os.Stat(coverPath); err == nil {
@@ -918,6 +921,32 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 				if artist == "" { artist = parts[len(parts)-3] }
 				if album == "" { album = parts[len(parts)-2] }
 			}
+		}
+
+		// Clean up title if it contains artist and album (like Lidarr file names)
+		if lastExtinf == "" {
+			cleanTitle := title
+			if artist != "" {
+				cleanTitle = strings.TrimPrefix(cleanTitle, artist+" - ")
+			}
+			if album != "" {
+				cleanTitle = strings.TrimPrefix(cleanTitle, album+" - ")
+			}
+			// Check if it starts with a track number like "01 - "
+			parts := strings.SplitN(cleanTitle, " - ", 2)
+			if len(parts) == 2 {
+				isNumeric := true
+				for _, c := range parts[0] {
+					if c < '0' || c > '9' {
+						isNumeric = false
+						break
+					}
+				}
+				if isNumeric {
+					cleanTitle = parts[1]
+				}
+			}
+			title = cleanTitle
 		}
 
 		items = append(items, PlaylistItem{
