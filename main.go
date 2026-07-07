@@ -141,16 +141,29 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 
 func handleCover(w http.ResponseWriter, r *http.Request) {
 	audioPath := r.URL.Query().Get("path")
-	if audioPath == "" || strings.Contains(audioPath, "..") {
+	playlistName := r.URL.Query().Get("playlist")
+	if audioPath == "" {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
 
 	configMutex.RLock()
 	musicPath := config.MusicPath
+	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
-	dir := filepath.Dir(filepath.Join(musicPath, audioPath))
+	var dir string
+	if playlistName != "" && !strings.Contains(playlistName, "..") {
+		playlistDir := filepath.Dir(filepath.Join(playlistsPath, playlistName))
+		dir = filepath.Dir(filepath.Join(playlistDir, audioPath))
+	} else {
+		if strings.Contains(audioPath, "..") {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
+		dir = filepath.Dir(filepath.Join(musicPath, audioPath))
+	}
+
 	covers := []string{"cover.jpg", "cover.png", "folder.jpg", "folder.png"}
 	for _, c := range covers {
 		coverPath := filepath.Join(dir, c)
@@ -284,7 +297,7 @@ func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 					for _, line := range lines {
 						trimmed := strings.TrimSpace(line)
 						if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-							trackCovers = append(trackCovers, fmt.Sprintf("/api/cover?path=%s", url.QueryEscape(trimmed)))
+							trackCovers = append(trackCovers, fmt.Sprintf("/api/cover?path=%s&playlist=%s", url.QueryEscape(trimmed), url.QueryEscape(rel)))
 							if len(trackCovers) == 4 {
 								break
 							}
@@ -913,7 +926,7 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 			Title:   title,
 			Artist:  artist,
 			Album:   album,
-			Cover:   fmt.Sprintf("/api/cover?path=%s", url.QueryEscape(trimmed)),
+			Cover:   fmt.Sprintf("/api/cover?path=%s&playlist=%s", url.QueryEscape(trimmed), url.QueryEscape(name)),
 		})
 		lastExtinf = ""
 	}
