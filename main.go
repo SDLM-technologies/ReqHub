@@ -179,6 +179,9 @@ func handleCover(w http.ResponseWriter, r *http.Request) {
 
 	var fullAudioPath string
 	
+	artist := r.URL.Query().Get("artist")
+	album := r.URL.Query().Get("album")
+
 	// Determine the absolute path of the audio file to locate its directory
 	if filepath.IsAbs(audioPath) {
 		// Use absolute path directly if provided in the m3u8 file
@@ -213,6 +216,45 @@ func handleCover(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	// Step 2: Fallback to Lidarr API if artist and album are provided and no local file exists
+	if artist != "" && album != "" {
+		searchTerm := fmt.Sprintf("%s %s", artist, album)
+		lookupURL := fmt.Sprintf("/api/v1/album/lookup?term=%s", url.QueryEscape(searchTerm))
+		var lookupResults []map[string]interface{}
+		
+		err := lidarrRequest("GET", lookupURL, nil, &lookupResults)
+		if err == nil && len(lookupResults) > 0 {
+			bestAlbum := lookupResults[0]
+			if images, ok := bestAlbum["images"].([]interface{}); ok {
+				for _, imgInterface := range images {
+					if img, ok := imgInterface.(map[string]interface{}); ok {
+						if coverType, _ := img["coverType"].(string); coverType == "cover" {
+							if imgURL, _ := img["url"].(string); imgURL != "" {
+								// Fetch image from Lidarr
+								configMutex.RLock()
+								lURL := strings.TrimRight(config.LidarrURL, "/")
+								lKey := config.LidarrKey
+								configMutex.RUnlock()
+
+								req, _ := http.NewRequest("GET", lURL+imgURL, nil)
+								req.Header.Set("X-Api-Key", lKey)
+								
+								resp, err := http.DefaultClient.Do(req)
+								if err == nil && resp.StatusCode == 200 {
+									defer resp.Body.Close()
+									w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+									io.Copy(w, resp.Body)
+									return
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	http.Error(w, "Cover not found", http.StatusNotFound)
 }
 
@@ -1077,7 +1119,7 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 			Title:   title,
 			Artist:  artist,
 			Album:   album,
-			Cover:   fmt.Sprintf("/api/cover?path=%s&playlist=%s", url.QueryEscape(trimmed), url.QueryEscape(name)),
+			Cover:   fmt.Sprintf("/api/cover?path=%s&playlist=%s&artist=%s&album=%s", url.QueryEscape(trimmed), url.QueryEscape(name), url.QueryEscape(artist), url.QueryEscape(album)),
 		})
 		
 		// Reset the metadata for the next track
