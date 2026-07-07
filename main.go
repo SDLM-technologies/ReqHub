@@ -603,7 +603,9 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	// Step 2: If the album does not exist in Lidarr's monitored library (ID == 0), add it
 	if albumID == 0 {
 		bestAlbum["addOptions"] = map[string]interface{}{
-			"searchForNewAlbum": true,
+			// Setting to false prevents 500 Server Error if user has no download client connected in Lidarr.
+			// The asynchronous search command triggered at the end of this function handles the search anyway!
+			"searchForNewAlbum": false,
 		}
 		var addedAlbum map[string]interface{}
 		err = lidarrRequest("POST", "/api/v1/album", bestAlbum, &addedAlbum)
@@ -1053,7 +1055,6 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 
 		// At this point, the line is a file path to an audio track
 		title, artist, album := "", "", ""
-		
 		// 1. Try to extract metadata from the preceding #EXTINF tag if one existed
 		if lastExtinf != "" {
 			parts := strings.Split(lastExtinf, " - ")
@@ -1085,32 +1086,33 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// 4. Clean up the title if it contains redundant artist/album information 
-		// (Common when Lidarr renames files in the format "Artist - Album - TrackTitle.mp3")
-		if lastExtinf == "" {
-			cleanTitle := title
-			if artist != "" {
-				cleanTitle = strings.TrimPrefix(cleanTitle, artist+" - ")
-			}
-			if album != "" {
-				cleanTitle = strings.TrimPrefix(cleanTitle, album+" - ")
-			}
-			
-			// Remove leading track numbers (e.g., "01 - Track Title")
-			parts := strings.SplitN(cleanTitle, " - ", 2)
-			if len(parts) == 2 {
-				isNumeric := true
-				for _, c := range parts[0] {
-					if c < '0' || c > '9' {
-						isNumeric = false
-						break
-					}
-				}
-				if isNumeric {
-					cleanTitle = parts[1]
-				}
-			}
-			title = cleanTitle
+		// Clean up the extracted metadata to ensure clean UI and accurate Lidarr searches
+		cleanRegex := regexp.MustCompile(`(?i)\s*\[.*?\]|\s*\(.*?\)`)
+		trackNumRegex := regexp.MustCompile(`^\d+\s*-\s*|^\d+\s+`)
+		
+		title = trackNumRegex.ReplaceAllString(title, "")
+		title = cleanRegex.ReplaceAllString(title, "")
+		
+		// Frequently Lidarr leaves the Artist and Album in the file name even after splitting:
+		if artist != "" {
+			title = strings.TrimPrefix(title, artist+" - ")
+		}
+		if album != "" {
+			title = strings.TrimPrefix(title, album+" - ")
+		}
+		
+		title = strings.TrimSpace(title)
+
+		artist = cleanRegex.ReplaceAllString(artist, "")
+		artist = strings.TrimSpace(artist)
+
+		album = cleanRegex.ReplaceAllString(album, "")
+		album = strings.TrimSpace(album)
+
+		// Create a user-friendly display string
+		display := title
+		if artist != "" {
+			display = artist + " - " + title
 		}
 
 		items = append(items, PlaylistItem{
