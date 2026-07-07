@@ -1,6 +1,5 @@
 <svg viewBox="0 0 250 80" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Gradient for e and q, spanning from the e to the end of the q tail -->
     <linearGradient id="eq-grad" x1="40" y1="0" x2="205" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#e53935" />
       <stop offset="100%" stop-color="#9c27b0" />
@@ -11,30 +10,20 @@
     </linearGradient>
   </defs>
   <style>
-    .text-r { font-family: 'Inter', system-ui, sans-serif; font-size: 42px; font-weight: 900; fill: var(--text, #121212); }
+    .text-r { font-family: 'Inter', system-ui, sans-serif; font-size: 42px; font-weight: 900; fill: #121212; }
     .text-e { font-family: 'Inter', system-ui, sans-serif; font-size: 44px; font-weight: 700; fill: url(#eq-grad); }
-    .text-hub { font-family: 'Inter', system-ui, sans-serif; font-size: 42px; font-weight: 900; fill: var(--text, #121212); }
-    .text-by { font-family: 'Inter', system-ui, sans-serif; font-size: 10px; font-weight: 600; fill: var(--text, #121212); text-transform: uppercase; letter-spacing: 1px; }
+    .text-hub { font-family: 'Inter', system-ui, sans-serif; font-size: 42px; font-weight: 900; fill: #121212; }
+    .text-by { font-family: 'Inter', system-ui, sans-serif; font-size: 10px; font-weight: 600; fill: #121212; text-transform: uppercase; letter-spacing: 1px; }
     .text-sdlm { font-family: 'Inter', system-ui, sans-serif; font-size: 16px; font-weight: 900; font-style: italic; fill: url(#sdlm-grad); letter-spacing: 2px; }
+    @media (prefers-color-scheme: dark) {
+      .text-r, .text-hub, .text-by { fill: #e0e0e0; }
+    }
   </style>
-
-  <!-- "R" -->
   <text x="9" y="50" class="text-r">R</text>
-  
-  <!-- Custom "q" with 'e' perfectly filling the inside, sharing a continuous gradient -->
-  <!-- Bowl of q -->
   <circle cx="56" cy="35" r="16" fill="none" stroke="url(#eq-grad)" stroke-width="4" />
-  <!-- "e" vertically nudged up and slightly left to appear visually perfectly centered -->
   <text x="54" y="32" class="text-e" text-anchor="middle" dominant-baseline="central">e</text>
-  
-  <!-- Stem and elongated tail looping under Hub -->
-  <!-- Top aligned with R and H (y=19), angular/octagon corner (L 84,72) -->
   <path d="M 72,19 L 72,60 L 84,72 L 205,72" fill="none" stroke="url(#eq-grad)" stroke-width="6" stroke-linejoin="miter" stroke-linecap="round" />
-  
-  <!-- "Hub" -->
   <text x="86" y="50" class="text-hub">Hub</text>
-
-  <!-- "by SDLM" resting on the q tail -->
   <text x="105" y="66" class="text-by">by</text>
-  <text x="125" y="66" class="text-sdlm">SDLM</text>
+  <text x="125" y="66" class="text-sdlm">SDLM™</text>
 </svg>
