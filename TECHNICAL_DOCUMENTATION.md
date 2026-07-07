@@ -51,3 +51,30 @@ ReqHub guarantees zero vendor lock-in.
 ## Feature: Automatic Master Playlist (All Music.m3u)
 ### Under the Hood
 Whenever `indexPlaylists()` is called (during load or after any playlist modification), the Go backend iterates over every parsed M3U array. It maintains a `map[string]bool` of unique `#EXTINF` lines. Any line not already in the map is appended. The resulting aggregate array is immediately written to disk as `All Music.m3u`, effectively creating a completely automated "All Tracks" Smart Playlist without requiring SQL triggers.
+
+## File Architecture & Roles
+This section provides a deep dive into the role and responsibility of each individual file in the repository.
+
+### Backend (Go)
+- **`main.go`**: The entry point of the application. It initializes the web server, registers all HTTP routes (endpoints), and contains the core business logic for processing searches (iTunes, LRCLIB), generating the `All Music.m3u` playlist, and interacting with the Lidarr API for general track downloads. It also houses the SSE (Server-Sent Events) broadcaster.
+- **`sync.go`**: Handles the synchronization between the offline PWA queue and the backend. It processes batch operations (`ADD`, `REMOVE`) coming from the frontend's `localStorage` and executes them safely in a locked thread to prevent race conditions during reconnections.
+- **`history.go`**: Manages the "Safety Net" feature. It contains the struct definitions (`DeletedTrack`), the append logic for `data/deleted_history.json`, and the HTTP handlers responsible for fetching the history or restoring deleted tracks back into Lidarr.
+- **`cleanup.go`**: Contains the complex algorithms for the Disk Cleaner feature. It recursively parses the `.m3u` playlist directory, builds a memory map of used tracks, cross-references it with Lidarr's physically downloaded files, and identifies/removes orphans.
+- **`export.go`**: Houses the logic for the Data Portability feature. It aggregates the application's configuration, deletion history, and the physical content of all `.m3u` files, zipping them into a single `reqhub_export.json` file for download. It also handles the reverse import process.
+- **`stream.go`**: Powers the MusicBubble backend. It intercepts stream requests and spins up a native `yt-dlp` OS process, piping its standard output directly to the HTTP response writer to provide a seamless audio stream without caching the file on disk.
+- **`lidarr_views.go`**: Handles the Lidarr integration for the Artist and Album pages. It proxies requests to Lidarr to fetch full discographies and checks local database possession to return the "Sur le disque" vs "Non possédé" statuses to the UI.
+
+### Frontend (HTML/JS/CSS)
+- **`index.html`**: A monolithic Single Page Application (SPA). It contains the entire structural HTML layout, the CSS styling (including Light/Dark mode variables), and the extensive vanilla JavaScript required for UI state management, offline queuing, API calls, and the MusicBubble player.
+- **`manifest.json`**: The Web App Manifest. It provides the metadata (icons, name, theme colors) required by browsers (Chrome/Safari) to install ReqHub as a native Progressive Web App (PWA) on mobile devices or desktops.
+- **`service-worker.js`**: The PWA background script. It intercepts network requests and caches the `index.html` and assets so that the application UI can successfully load even when the server is offline or unreachable.
+
+### Deployment & Tooling
+- **`Dockerfile`**: A multi-stage build script that compiles the Go binary statically and packages it with `yt-dlp` into an ultra-lightweight Alpine image to ensure a minimal footprint on NAS environments.
+- **`docker-compose.yml`**: The recommended deployment configuration for end-users, defining the necessary volume mappings (especially the critical music path binding) and environment variables for the container.
+- **`go.mod` / `go.sum`**: The Go package manager files. They declare the Go version and ensure deterministic builds by locking the exact versions of the few external dependencies used (like ID3 tag parsers).
+
+### Documentation & Logs
+- **`README.md`**: The user-facing documentation. It provides a high-level overview, the list of features, and the step-by-step deployment and configuration guide.
+- **`TECHNICAL_DOCUMENTATION.md`**: (This file). It provides deep architectural insights, algorithms, and detailed file roles for developers and AI agents.
+- **`PATCH_NOTES.md`**: The sequential changelog of the project. It tracks every code, feature, and bugfix update using `### UPDATE` delimiters to provide a clear history of modifications.
