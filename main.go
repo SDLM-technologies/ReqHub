@@ -101,6 +101,8 @@ func main() {
 	http.HandleFunc("/api/playlist/read", handlePlaylistRead)
 	http.HandleFunc("/api/playlist/remove_track", handlePlaylistRemoveTrack)
 	http.HandleFunc("/api/playlist/delete", handlePlaylistDelete)
+	http.HandleFunc("/api/cover", handleCover)
+	http.HandleFunc("/api/playlist/cover", handlePlaylistCover)
 
 	fmt.Println("🚀 SDLM ReqHub started on port :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
@@ -137,17 +139,113 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
+func handleCover(w http.ResponseWriter, r *http.Request) {
+	audioPath := r.URL.Query().Get("path")
+	if audioPath == "" || strings.Contains(audioPath, "..") {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+
+	configMutex.RLock()
+	musicPath := config.MusicPath
+	configMutex.RUnlock()
+
+	dir := filepath.Dir(filepath.Join(musicPath, audioPath))
+	covers := []string{"cover.jpg", "cover.png", "folder.jpg", "folder.png"}
+	for _, c := range covers {
+		coverPath := filepath.Join(dir, c)
+		if _, err := os.Stat(coverPath); err == nil {
+			http.ServeFile(w, r, coverPath)
+			return
+		}
+	}
+	http.Error(w, "Not found", http.StatusNotFound)
+}
+
+func handlePlaylistCover(w http.ResponseWriter, r *http.Request) {
+	playlistName := r.URL.Query().Get("name")
+	if playlistName == "" || strings.Contains(playlistName, "..") {
+		http.Error(w, "Invalid name", http.StatusBadRequest)
+		return
+	}
+
+	configMutex.RLock()
+	playlistsPath := config.PlaylistsPath
+	configMutex.RUnlock()
+
+	playlistDir := filepath.Dir(filepath.Join(playlistsPath, playlistName))
+
+	if r.Method == "GET" {
+		covers := []string{"cover.jpg", "cover.png", playlistName + "_cover.jpg", playlistName + "_cover.png"}
+		// if playlistName is just "myplaylist.m3u", Dir is playlistsPath.
+		// So we also check for myplaylist_cover.jpg in case it's in the root.
+		baseName := filepath.Base(playlistName)
+		if ext := filepath.Ext(baseName); ext != "" {
+			baseName = strings.TrimSuffix(baseName, ext)
+		}
+		covers = append(covers, baseName+"_cover.jpg", baseName+"_cover.png")
+		
+		for _, c := range covers {
+			coverPath := filepath.Join(playlistDir, c)
+			if _, err := os.Stat(coverPath); err == nil && !strings.Contains(coverPath, "..") {
+				http.ServeFile(w, r, coverPath)
+				return
+			}
+		}
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	if r.Method == "POST" {
+		defer r.Body.Close()
+		content, err := io.ReadAll(r.Body)
+		if err != nil || len(content) == 0 {
+			http.Error(w, "Invalid body", http.StatusBadRequest)
+			return
+		}
+		
+		baseName := filepath.Base(playlistName)
+		if ext := filepath.Ext(baseName); ext != "" {
+			baseName = strings.TrimSuffix(baseName, ext)
+		}
+		
+		coverFileName := "cover.jpg"
+		// If the playlist is in the root (Dir is playlistsPath), use playlist_cover.jpg to avoid conflicts
+		if playlistDir == playlistsPath {
+			coverFileName = baseName + "_cover.jpg"
+		}
+		
+		coverPath := filepath.Join(playlistDir, coverFileName)
+		err = os.WriteFile(coverPath, content, 0644)
+		if err != nil {
+			http.Error(w, "Write error", http.StatusInternalServerError)
+			return
+		}
+		
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		return
+	}
+	
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
+type PlaylistInfo struct {
+	Name        string   `json:"name"`
+	CustomCover string   `json:"customCover"`
+	TrackCovers []string `json:"trackCovers"`
+}
+
 func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 	configMutex.RLock()
 	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
 	if playlistsPath == "" {
-		json.NewEncoder(w).Encode([]string{})
+		json.NewEncoder(w).Encode([]PlaylistInfo{})
 		return
 	}
 
-	var playlists []string
+	var playlists []PlaylistInfo
 	filepath.WalkDir(playlistsPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // Ignore access errors
@@ -155,7 +253,47 @@ func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 		ext := strings.ToLower(filepath.Ext(path))
 		if !d.IsDir() && (ext == ".m3u" || ext == ".m3u8") {
 			rel, _ := filepath.Rel(playlistsPath, path)
-			playlists = append(playlists, rel)
+			
+			info := PlaylistInfo{Name: rel}
+			
+			// Check for custom cover
+			playlistDir := filepath.Dir(path)
+			baseName := filepath.Base(rel)
+			if ext := filepath.Ext(baseName); ext != "" {
+				baseName = strings.TrimSuffix(baseName, ext)
+			}
+			
+			customCoverFound := false
+			covers := []string{"cover.jpg", "cover.png"}
+			if playlistDir == playlistsPath {
+				covers = []string{baseName + "_cover.jpg", baseName + "_cover.png"}
+			}
+			for _, c := range covers {
+				if _, err := os.Stat(filepath.Join(playlistDir, c)); err == nil {
+					info.CustomCover = fmt.Sprintf("/api/playlist/cover?name=%s", url.QueryEscape(rel))
+					customCoverFound = true
+					break
+				}
+			}
+			
+			if !customCoverFound {
+				// Read first 4 tracks to get grid
+				if content, err := os.ReadFile(path); err == nil {
+					lines := strings.Split(string(content), "\n")
+					var trackCovers []string
+					for _, line := range lines {
+						trimmed := strings.TrimSpace(line)
+						if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+							trackCovers = append(trackCovers, fmt.Sprintf("/api/cover?path=%s", url.QueryEscape(trimmed)))
+							if len(trackCovers) == 4 {
+								break
+							}
+						}
+					}
+					info.TrackCovers = trackCovers
+				}
+			}
+			playlists = append(playlists, info)
 		}
 		return nil
 	})
@@ -656,8 +794,11 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid name", http.StatusBadRequest)
 		return
 	}
+	baseName := name
 	lowName := strings.ToLower(name)
-	if !strings.HasSuffix(lowName, ".m3u") && !strings.HasSuffix(lowName, ".m3u8") {
+	if strings.HasSuffix(lowName, ".m3u") || strings.HasSuffix(lowName, ".m3u8") {
+		baseName = name[:strings.LastIndex(name, ".")]
+	} else {
 		name += ".m3u8"
 	}
 	
@@ -665,8 +806,14 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
-	fullPath := filepath.Join(playlistsPath, name)
+	dirPath := filepath.Join(playlistsPath, baseName)
+	fullPath := filepath.Join(dirPath, name)
 	
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		http.Error(w, "Error creating directory", http.StatusInternalServerError)
+		return
+	}
+
 	if _, err := os.Stat(fullPath); err == nil {
 		http.Error(w, "Playlist already exists", http.StatusConflict)
 		return
@@ -682,6 +829,10 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 type PlaylistItem struct {
 	Line    string `json:"line"`
 	Display string `json:"display"`
+	Cover   string `json:"cover"`
+	Title   string `json:"title"`
+	Artist  string `json:"artist"`
+	Album   string `json:"album"`
 }
 
 func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
@@ -727,15 +878,42 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		display := lastExtinf
-		if display == "" {
+		title, artist, album := "", "", ""
+		if lastExtinf != "" {
+			parts := strings.Split(lastExtinf, " - ")
+			if len(parts) >= 3 {
+				artist = strings.TrimSpace(parts[0])
+				album = strings.TrimSpace(parts[1])
+				title = strings.TrimSpace(parts[2])
+			} else if len(parts) == 2 {
+				artist = strings.TrimSpace(parts[0])
+				title = strings.TrimSpace(parts[1])
+			} else {
+				title = lastExtinf
+			}
+		}
+
+		if title == "" {
 			base := filepath.Base(trimmed)
-			display = strings.TrimSuffix(base, filepath.Ext(base))
+			title = strings.TrimSuffix(base, filepath.Ext(base))
 		}
 		
+		// Fallback to path extraction for artist/album if missing
+		if artist == "" || album == "" {
+			parts := strings.Split(filepath.ToSlash(trimmed), "/")
+			if len(parts) >= 3 {
+				if artist == "" { artist = parts[len(parts)-3] }
+				if album == "" { album = parts[len(parts)-2] }
+			}
+		}
+
 		items = append(items, PlaylistItem{
 			Line:    trimmed,
-			Display: display,
+			Display: title, // Kept for backwards compatibility
+			Title:   title,
+			Artist:  artist,
+			Album:   album,
+			Cover:   fmt.Sprintf("/api/cover?path=%s", url.QueryEscape(trimmed)),
 		})
 		lastExtinf = ""
 	}

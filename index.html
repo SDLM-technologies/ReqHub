@@ -118,9 +118,15 @@
         .playlist-manager-item {
             width: 100%; background: var(--bg-card); padding: 15px; border-radius: 10px; margin-bottom: 10px;
             display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s;
-            box-sizing: border-box;
+            box-sizing: border-box; gap: 15px;
         }
         .playlist-manager-item:hover { border-left: 4px solid var(--primary); }
+        .playlist-manager-cover { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; }
+        .playlist-manager-grid { 
+            width: 60px; height: 60px; border-radius: 8px; overflow: hidden;
+            display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; background: #333;
+        }
+        .playlist-manager-grid img { width: 100%; height: 100%; object-fit: cover; }
         
         .create-playlist-container { width: 100%; display: flex; gap: 10px; margin-top: 20px; }
         
@@ -129,9 +135,11 @@
         
         .playlist-track-item {
             width: 100%; background: var(--bg-card); padding: 12px 15px; border-radius: 8px; margin-bottom: 8px;
-            display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
+            display: grid; grid-template-columns: 50px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 40px;
+            gap: 15px; align-items: center; box-sizing: border-box;
         }
-        .playlist-track-name { flex: 1; word-break: break-all; margin-right: 10px; }
+        .playlist-track-item img { width: 50px; height: 50px; border-radius: 4px; object-fit: cover; }
+        .playlist-track-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .delete-icon-btn {
             background: var(--error); border: none; border-radius: 4px; color: white; cursor: pointer;
             padding: 8px; display: none;
@@ -269,6 +277,7 @@
         </div>
         <div class="playlist-actions">
             <button id="toggleEditBtn" class="btn-secondary" style="flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s;" onclick="toggleEditMode()" data-i18n="manage_playlist_btn">Manage playlist</button>
+            <button id="editCoverBtn" class="btn-outline" style="display: none; padding: 12px; border-radius: 8px; cursor: pointer;" onclick="editPlaylistCover()">Edit Cover</button>
         </div>
         
         <div id="playlistSearchSection" style="display: none; width: 100%; margin-bottom: 20px;">
@@ -513,8 +522,8 @@
                 list.forEach(p => {
                     const lbl = document.createElement('label');
                     lbl.className = 'playlist-label';
-                    const name = p.replace(/\.m3u$/i, '');
-                    lbl.innerHTML = `<input type="checkbox" value="${p}"> ${name}`;
+                    const name = p.name.replace(/\.m3u8?$/i, '').split(/[\\/]/).pop();
+                    lbl.innerHTML = `<input type="checkbox" value="${p.name}"> ${name}`;
                     container.appendChild(lbl);
                 });
             } catch(e) { console.error(e); }
@@ -794,9 +803,32 @@
                 list.forEach(p => {
                     const div = document.createElement('div');
                     div.className = 'playlist-manager-item';
-                    const name = p.replace(/\.m3u$/i, '');
-                    div.innerHTML = `<span style="font-weight:bold;">${name}</span> <span>▶</span>`;
-                    div.onclick = () => openPlaylistDetail(p);
+                    const name = p.name.replace(/\.m3u8?$/i, '').split(/[\\/]/).pop();
+                    
+                    let imageHTML = '';
+                    if (p.customCover) {
+                        imageHTML = `<img src="${p.customCover}" class="playlist-manager-cover">`;
+                    } else if (p.trackCovers && p.trackCovers.length > 0) {
+                        let grid = '<div class="playlist-manager-grid">';
+                        p.trackCovers.slice(0,4).forEach(c => {
+                            grid += `<img src="${c}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 50 50\\'><rect width=\\'50\\' height=\\'50\\' fill=\\'%23333\\'/></svg>'">`;
+                        });
+                        grid += '</div>';
+                        imageHTML = grid;
+                    } else {
+                        imageHTML = `<div class="playlist-manager-cover" style="background:#333; display:flex; align-items:center; justify-content:center;">🎵</div>`;
+                    }
+
+                    div.innerHTML = `
+                        <div style="display:flex; align-items:center; gap: 15px;">
+                            ${imageHTML}
+                            <span style="font-weight:bold; font-size: 1.1em;">${name}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap: 10px;">
+                            <span>▶</span>
+                        </div>
+                    `;
+                    div.onclick = () => openPlaylistDetail(p.name);
                     container.appendChild(div);
                 });
             } catch(e) { console.error(e); }
@@ -850,7 +882,10 @@
                     const div = document.createElement('div');
                     div.className = 'playlist-track-item';
                     div.innerHTML = `
-                        <div class="playlist-track-name">${tr.display}</div>
+                        <img src="${tr.cover}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 50 50\\'><rect width=\\'50\\' height=\\'50\\' fill=\\'%23333\\'/></svg>'">
+                        <div class="playlist-track-text" title="${tr.title}" style="font-weight: bold;">${tr.title || tr.display}</div>
+                        <div class="playlist-track-text" title="${tr.artist}" style="color:var(--secondary);">${tr.artist}</div>
+                        <div class="playlist-track-text" title="${tr.album}" style="color:var(--text); opacity:0.7;">${tr.album}</div>
                         <button class="delete-icon-btn" title="${t('remove_tooltip')}" onclick="removeTrack('${tr.line.replace(/'/g, "\\'")}')">🗑️</button>
                     `;
                     container.appendChild(div);
@@ -864,7 +899,33 @@
             const isEdit = view.classList.contains('edit-mode');
             document.getElementById('playlistSearchSection').style.display = isEdit ? 'block' : 'none';
             document.getElementById('deletePlaylistBtn').style.display = isEdit ? 'block' : 'none';
+            document.getElementById('editCoverBtn').style.display = isEdit ? 'block' : 'none';
             document.getElementById('toggleEditBtn').textContent = isEdit ? t('done_editing_btn') : t('manage_playlist_btn');
+        }
+
+        function editPlaylistCover() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                try {
+                    const res = await fetch('/api/playlist/cover?name=' + encodeURIComponent(currentPlaylistName), {
+                        method: 'POST',
+                        body: file
+                    });
+                    if (res.ok) {
+                        showToast("Cover updated!", "var(--success)");
+                        loadPlaylistsManager();
+                    } else {
+                        showToast(t('server_error'), "var(--error)");
+                    }
+                } catch(err) {
+                    showToast(t('server_error'), "var(--error)");
+                }
+            };
+            input.click();
         }
 
         async function removeTrack(line) {
