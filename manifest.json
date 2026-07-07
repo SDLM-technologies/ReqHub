@@ -1,0 +1,21 @@
+{
+  "name": "SDLM ReqHub",
+  "short_name": "ReqHub",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#1db954",
+  "description": "SDLM Request Hub - Music Request and Streaming Interface",
+  "icons": [
+    {
+      "src": "/logo/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -11,8 +11,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o reqhub .
 # Stage 2: Ultra-lightweight final image
 FROM alpine:latest
 
-# Install root certificates, timezone data, ffmpeg, and rsgain from edge community repo
-RUN apk add --no-cache ca-certificates tzdata ffmpeg \
+# Install root certificates, timezone data, ffmpeg, yt-dlp, and rsgain from edge community repo
+RUN apk add --no-cache ca-certificates tzdata ffmpeg yt-dlp \
     && apk add --no-cache rsgain --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 
 WORKDIR /app

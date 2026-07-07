@@ -6,16 +6,22 @@ The application allows you to search for a specific track, trigger its download 
 
 ## 🌟 Features
 
-- **Instant Search:** Uses the public iTunes API for precise track and album searches (no account or API key required).
+- **Instant Search:** Uses the public iTunes API (with Levenshtein strict filtering) and LRCLIB for precise track, album, and lyrics searches (no account or API key required).
 - **Smart Logic & Two-Way Synchronization:** 
   - **Pre-loading:** When selecting a track, the app instantly checks if it already exists on your disk. If it does, it reads all your `.m3u` files and **automatically pre-checks** the playlists where the track is already present.
   - **Instant Addition:** If the music exists but is not in the selected playlist, it is added to the `.m3u` instantly.
   - **Easy Removal:** If a track was already in a playlist but you **uncheck** it, the app cleanly removes the corresponding line from the `.m3u` file.
   - **Missing Track Scenario:** If the music is missing, the app instructs Lidarr to search for and download the album.
+- **Offline PWA & Queue:** Install as a Progressive Web App. If you lose connection, requests are queued locally and synchronized automatically when you go back online.
+- **Server-Sent Events (SSE):** The UI reacts to changes on the filesystem without needing a manual refresh.
 - **Automated Addition (Webhook):** As soon as Lidarr finishes downloading, ReqHub captures the file and injects it into the playlists you previously checked.
-- **Built-in Playlist Manager:** Dedicated interface to create, read, modify (add/remove tracks via UI), and delete your local `.m3u` playlists.
-- **Ultra Lightweight & Fast:** Backend written in Go. Extracts exact metadata and Cover Art images **natively from local ID3/FLAC tags** for instantaneous loading without external APIs. Frontend in **native HTML/CSS/JS**.
-- **Modern & Responsive UI:** Fully redesigned interface that dynamically adapts to your device (desktop or smartphone). Includes a brand new visual identity and smooth modal popups for adding tracks.
+- **Interactive Artist & Album Views:** Click on any artist or album to view their complete discography directly pulled from Lidarr, with local possession statuses.
+- **Built-in Playlist Manager:** Dedicated interface to create, read, modify, and delete your local `.m3u` playlists. Includes Last.fm-powered recommendations and sorting.
+- **MusicBubble Audio Player:** A floating, interactive mini-player that streams remote audio dynamically via `yt-dlp`.
+- **Disk Cleaner & Safety Net:** Scan for orphaned audio files and remove them to save space. Deletions are securely logged in `deleted_history.json`, and a comprehensive History UI allows you to restore individual tracks.
+- **Data Portability:** Full JSON-based Export and Import functionality for your config, playlist library, and deletion history.
+- **Ultra Lightweight & Fast:** Backend written in Go. Extracts exact metadata natively from local tags. Frontend in **native HTML/CSS/JS**.
+- **Modern & Responsive UI:** Fully redesigned interface that dynamically adapts to your device.
 - **Auto Theme Support:** Automatically switches between Light and Dark mode based on your device's system preferences.
 - **NAS Optimized (TrueNAS, Unraid, etc.):** CPU/RAM consumption close to zero, multi-stage Docker build resulting in a tiny Alpine/Scratch final image.
 
