@@ -11,8 +11,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o reqhub .
 # Stage 2: Ultra-lightweight final image
 FROM alpine:latest
 
-# Install root certificates for HTTPS requests to iTunes API
-RUN apk --no-cache add ca-certificates tzdata
+# Install root certificates, timezone data, ffmpeg, and rsgain from edge community repo
+RUN apk add --no-cache ca-certificates tzdata ffmpeg \
+    && apk add --no-cache rsgain --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 
 WORKDIR /app
 

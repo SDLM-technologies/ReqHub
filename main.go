@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -32,6 +33,7 @@ type Config struct {
 	NaviPass      string `json:"naviPass"`      // Navidrome password (optional)
 	NaviKey       string `json:"naviKey"`       // Navidrome generated token/salt for API auth (optional)
 	Language      string `json:"language"`      // Application language preference (e.g., 'en', 'fr')
+	EnableRsgain  bool   `json:"enableRsgain"`  // Toggle to enable/disable automated rsgain scanning
 }
 
 // Global state variables
@@ -741,6 +743,26 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 			}
 			pendingMutex.Unlock()
 			savePending()
+
+			// Check if we need to run rsgain on the new album
+			configMutex.RLock()
+			enableRsgain := config.EnableRsgain
+			configMutex.RUnlock()
+			
+			if enableRsgain {
+				albumPath := filepath.Dir(filePath)
+				go func(p string) {
+					log.Printf("Starting rsgain scan on: %s\n", p)
+					// Run the native rsgain binary installed in the Alpine container
+					cmd := exec.Command("rsgain", "custom", p)
+					out, err := cmd.CombinedOutput()
+					if err != nil {
+						log.Printf("rsgain error on %s: %v\nOutput: %s\n", p, err, string(out))
+					} else {
+						log.Printf("rsgain completed successfully for: %s\n", p)
+					}
+				}(albumPath)
+			}
 
 			// Handle track upgrades (e.g., a higher quality version replaced an older version)
 			isUpgrade, _ := payload["isUpgrade"].(bool)

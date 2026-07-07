@@ -313,6 +313,14 @@
             <input type="password" id="naviPass" placeholder="password">
             <label data-i18n="navi_key">Navidrome API Key / Token (Optional)</label>
             <input type="password" id="naviKey" placeholder="token">
+            
+            <hr style="border: 0; border-top: 1px solid #444; margin: 15px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <label data-i18n="enable_rsgain" style="margin: 0; font-weight: bold; color: var(--primary);">Enable ReplayGain (rsgain)</label>
+                <input type="checkbox" id="enableRsgain" style="width: auto; transform: scale(1.5);">
+            </div>
+            <p style="font-size: 0.8em; color: #888; margin-top: 0; margin-bottom: 15px;" data-i18n="rsgain_desc">Automatically calculate and apply ReplayGain tags after Lidarr downloads.</p>
+            
             <label data-i18n="language">Language</label>
             <select id="langSelect">
                 <option value="en">English</option>
@@ -352,9 +360,13 @@
                 navi_url: "Navidrome URL (Optional)",
                 navi_user: "Navidrome Username (Optional)",
                 navi_pass: "Navidrome Password (Optional)",
+                navi_key: "Navidrome API Key / Token (Optional)",
                 language: "Language",
                 cancel_btn: "Cancel",
                 save_btn: "Save",
+                settings_saved: "Settings saved!",
+                enable_rsgain: "Enable ReplayGain (rsgain)",
+                rsgain_desc: "Automatically calculate and apply ReplayGain tags to new Lidarr downloads (natively and securely integrated).",
                 no_results: "No results.",
                 no_results_itunes: "No results found on iTunes.",
                 no_playlists: "No playlist found. Check your settings.",
@@ -369,7 +381,6 @@
                 checking: "Checking...",
                 processing: "Processing...",
                 save_changes: "Save changes",
-                settings_saved: "Settings saved",
                 playlist_created: "Playlist created!",
                 track_removed: "Track removed",
                 error_deleting: "Error while deleting",
@@ -400,9 +411,13 @@
                 navi_url: "URL Navidrome (Optionnel)",
                 navi_user: "Nom d'utilisateur Navidrome (Optionnel)",
                 navi_pass: "Mot de passe Navidrome (Optionnel)",
+                navi_key: "Clé API / Jeton Navidrome (Optionnel)",
                 language: "Langue",
                 cancel_btn: "Annuler",
                 save_btn: "Enregistrer",
+                settings_saved: "Paramètres enregistrés !",
+                enable_rsgain: "Activer ReplayGain (rsgain)",
+                rsgain_desc: "Calcule et applique automatiquement les tags ReplayGain aux nouveaux téléchargements Lidarr (intégré de manière native et sécurisée).",
                 no_results: "Aucun résultat.",
                 no_results_itunes: "Aucun résultat trouvé sur iTunes.",
                 no_playlists: "Aucune playlist trouvée. Vérifiez vos paramètres.",
@@ -764,6 +779,7 @@
                 document.getElementById('naviPass').value = conf.naviPass || '';
                 document.getElementById('naviKey').value = conf.naviKey || '';
                 document.getElementById('langSelect').value = conf.language || 'en';
+                document.getElementById('enableRsgain').checked = conf.enableRsgain || false;
             } catch(e) {}
             document.getElementById('settingsModal').style.display = 'flex';
         }
@@ -784,7 +800,8 @@
                 naviUser: document.getElementById('naviUser').value,
                 naviPass: document.getElementById('naviPass').value,
                 naviKey: document.getElementById('naviKey').value,
-                language: document.getElementById('langSelect').value
+                language: document.getElementById('langSelect').value,
+                enableRsgain: document.getElementById('enableRsgain').checked
             };
             await fetch('/api/settings', {
                 method: 'POST',
