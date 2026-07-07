@@ -551,7 +551,12 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bestAlbum := lookupResults[0]
-	albumID := int(bestAlbum["id"].(float64))
+	
+	// Safely extract the album ID. If it's missing (unmonitored album), it will be 0.
+	albumID := 0
+	if idVal, ok := bestAlbum["id"].(float64); ok {
+		albumID = int(idVal)
+	}
 
 	// Step 2: If the album does not exist in Lidarr's monitored library (ID == 0), add it
 	if albumID == 0 {
