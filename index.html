@@ -604,6 +604,8 @@
             document.getElementById('trackModal').style.display = 'none';
         }
 
+        // searchMusic fetches track information from the backend search API (which proxies iTunes).
+        // It populates the results list and sets up click handlers to open the track management modal.
         async function searchMusic() {
             const q = document.getElementById('searchInput').value;
             if(!q) return;
@@ -614,15 +616,18 @@
                 if(!res.ok) throw new Error("iTunes API not responding");
                 const tracks = await res.json();
                 
+                // Clear previous results and hide any open modals
                 resultsDiv.innerHTML = '';
                 document.getElementById('trackModal').style.display = 'none';
                 selectedTrack = null;
 
+                // Handle case with no results
                 if(!tracks || tracks.length === 0) {
                     resultsDiv.innerHTML = `<span style="color:#aaa;">${t('no_results_itunes')}</span>`;
                     return;
                 }
 
+                // Render each track as a card
                 tracks.forEach(tr => {
                 const card = document.createElement('div');
                 card.className = 'track-card';
@@ -633,16 +638,21 @@
                         <div class="track-artist">${tr.artist} - ${tr.album}</div>
                     </div>
                 `;
+                
+                // When a track card is clicked, open the modal and check its status in Lidarr
                 card.onclick = async () => {
+                    // Update UI selection state
                     document.querySelectorAll('.track-card').forEach(c => c.classList.remove('selected'));
                     card.classList.add('selected');
                     selectedTrack = tr;
                     
+                    // Populate modal details
                     document.getElementById('trackModalCover').src = tr.cover;
                     document.getElementById('trackModalTitle').textContent = tr.title;
                     document.getElementById('trackModalArtist').textContent = tr.artist + " - " + tr.album;
                     document.getElementById('trackModal').style.display = 'flex';
                     
+                    // Reset all playlist checkboxes before checking status
                     document.querySelectorAll('#playlistsList input[type="checkbox"]').forEach(c => c.checked = false);
                     
                     const btn = document.getElementById('addBtn');
@@ -650,6 +660,7 @@
                     btn.textContent = t('checking');
                     
                     try {
+                        // Check if the track is already in any local playlists
                         const res = await fetch('/api/track_status', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
@@ -660,11 +671,15 @@
                             })
                         });
                         const existingPlaylists = await res.json();
+                        
+                        // Check the boxes for playlists that already contain this track
                         existingPlaylists.forEach(p => {
                             const pSafe = p.replace(/\\/g, '\\\\');
                             const cb = document.querySelector(`#playlistsList input[value="${pSafe}"]`);
                             if (cb) cb.checked = true;
                         });
+                        
+                        // Update button text based on whether it's an update or a new addition
                         if (existingPlaylists.length > 0) {
                             btn.textContent = t('save_changes');
                         } else {
@@ -679,13 +694,17 @@
                 resultsDiv.appendChild(card);
             });
             } catch(e) {
-                resultsDiv.innerHTML = `<span style="color:var(--error);">Erreur: L'API iTunes ne répond pas.</span>`;
-                showToast("Erreur iTunes API: " + e.message, "var(--error)");
+                resultsDiv.innerHTML = `<span style="color:var(--error);">Error: iTunes API is not responding.</span>`;
+                showToast("iTunes API Error: " + e.message, "var(--error)");
             }
         }
 
+        // addMusic submits the selected track to be added to the chosen playlists.
+        // It communicates with the backend /api/add endpoint and updates the UI based on the response.
         async function addMusic() {
             if(!selectedTrack) return;
+            
+            // Gather all selected playlists from the checkboxes in the modal
             const checkboxes = document.querySelectorAll('#playlistsList input[type="checkbox"]');
             const selectedPlaylists = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
             
@@ -695,6 +714,7 @@
             btn.textContent = t('processing');
 
             try {
+                // Send the track details and the target playlists to the backend
                 const res = await fetch('/api/add', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -705,28 +725,32 @@
                         playlists: selectedPlaylists
                     })
                 });
+                
                 let data = {};
                 let isJson = false;
                 try { data = await res.json(); isJson = true; } catch(e) {}
                 
+                // Handle the response: success, pending (downloading), or error
                 if(res.ok && isJson) {
                     const msg = data.status === 'pending' ? t('added_pending') : t('added_success');
                     showToast(msg, data.status === 'added' ? 'var(--success)' : 'var(--secondary)');
                 } else {
                     let errMsg = t('error_adding');
                     if(!isJson && !res.ok) {
-                        try { errMsg = data; /* It might be a text if json failed but we can't extract it easily like this */ } catch(e){}
+                        try { errMsg = data; /* Fallback for raw text errors */ } catch(e){}
                     }
                     showToast(errMsg, "var(--error)");
                 }
             } catch(e) {
                 showToast(t('conn_error'), "var(--error)");
             } finally {
+                // Restore button state
                 btn.disabled = false;
                 btn.textContent = originalText;
             }
         }
 
+        // openSettings fetches current configuration from the backend and populates the settings modal
         async function openSettings() {
             try {
                 const res = await fetch('/api/settings');
@@ -744,10 +768,12 @@
             document.getElementById('settingsModal').style.display = 'flex';
         }
 
+        // closeSettings hides the settings modal
         function closeSettings() {
             document.getElementById('settingsModal').style.display = 'none';
         }
 
+        // saveSettings sends the updated configuration back to the server and applies any language changes
         async function saveSettings() {
             const conf = {
                 lidarrUrl: document.getElementById('lidarrUrl').value,
@@ -766,17 +792,20 @@
                 body: JSON.stringify(conf)
             });
             currentLang = conf.language;
-            applyTranslations();
+            applyTranslations(); // Immediately apply new language if changed
             closeSettings();
             showToast(t('settings_saved'), "var(--success)");
-            loadPlaylists();
+            loadPlaylists(); // Refresh playlist list just in case paths changed
         }
 
         let currentPlaylistName = "";
 
+        // switchView handles navigation between the main screen, playlist manager, and individual playlist views
         function switchView(viewId) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
+            
+            // Clean up the edit state if entering the playlist detail view
             if(viewId === 'playlistDetailView') {
                 document.getElementById('playlistDetailView').classList.remove('edit-mode');
                 document.getElementById('playlistSearchSection').style.display = 'none';
@@ -786,28 +815,34 @@
             }
         }
 
+        // openPlaylistsManager navigates to the playlist manager view and fetches all playlists
         async function openPlaylistsManager() {
             switchView('playlistManagerView');
             loadPlaylistsManager();
         }
 
+        // loadPlaylistsManager fetches all playlists and renders them as clickable cards in the manager view
         async function loadPlaylistsManager() {
             try {
                 const res = await fetch('/api/playlists');
                 const list = await res.json();
                 const container = document.getElementById('managerPlaylistsList');
                 container.innerHTML = '';
+                
                 if(list.length === 0) {
                     container.innerHTML = `<span style="color:#aaa;">${t('no_playlists_manager')}</span>`;
                 }
+                
                 list.forEach(p => {
                     const div = document.createElement('div');
                     div.className = 'playlist-manager-item';
                     const name = p.name.replace(/\.m3u8?$/i, '').split(/[\\/]/).pop();
                     
                     let imageHTML = '';
+                    // Display the custom cover if it exists
                     if (p.customCover) {
                         imageHTML = `<img src="${p.customCover}" class="playlist-manager-cover">`;
+                    // Otherwise, display a grid of the first 4 track covers
                     } else if (p.trackCovers && p.trackCovers.length > 0) {
                         let grid = '<div class="playlist-manager-grid">';
                         p.trackCovers.slice(0,4).forEach(c => {
@@ -815,6 +850,7 @@
                         });
                         grid += '</div>';
                         imageHTML = grid;
+                    // Fallback default icon
                     } else {
                         imageHTML = `<div class="playlist-manager-cover" style="background:#333; display:flex; align-items:center; justify-content:center;">🎵</div>`;
                     }
@@ -834,6 +870,7 @@
             } catch(e) { console.error(e); }
         }
 
+        // createPlaylist handles the creation of a new, empty playlist via the backend API.
         async function createPlaylist() {
             const input = document.getElementById('newPlaylistName');
             const name = input.value.trim();
@@ -847,7 +884,7 @@
                 if(res.ok) {
                     input.value = '';
                     loadPlaylistsManager();
-                    loadPlaylists();
+                    loadPlaylists(); // Refresh the quick-add dropdown in the search modal
                     showToast(t('playlist_created'), "var(--success)");
                 } else {
                     showToast(t('server_error'), "var(--error)");
@@ -855,13 +892,16 @@
             } catch(e) { showToast(t('server_error'), "var(--error)"); }
         }
 
+        // openPlaylistDetail navigates to the detailed view of a specific playlist, showing its tracks.
         async function openPlaylistDetail(playlistName) {
             currentPlaylistName = playlistName;
-            document.getElementById('detailPlaylistTitle').textContent = playlistName.replace(/\.m3u$/i, '');
+            // Display the title without the .m3u or .m3u8 extension
+            document.getElementById('detailPlaylistTitle').textContent = playlistName.replace(/\.m3u8?$/i, '');
             switchView('playlistDetailView');
             loadPlaylistTracks();
         }
 
+        // loadPlaylistTracks fetches the track metadata for the currently opened playlist and renders it in a list.
         async function loadPlaylistTracks() {
             try {
                 const res = await fetch('/api/playlist/read?name=' + encodeURIComponent(currentPlaylistName));
@@ -878,6 +918,7 @@
                     return;
                 }
                 
+                // Render each track as a structured row with Cover, Title, Artist, and Album columns.
                 tracks.forEach(tr => {
                     const div = document.createElement('div');
                     div.className = 'playlist-track-item';
@@ -893,16 +934,21 @@
             } catch(e) { console.error(e); }
         }
 
+        // toggleEditMode switches the playlist detail view into an interactive management mode
+        // enabling track deletion, adding new tracks, and editing the playlist cover image.
         function toggleEditMode() {
             const view = document.getElementById('playlistDetailView');
             view.classList.toggle('edit-mode');
             const isEdit = view.classList.contains('edit-mode');
+            
+            // Toggle visibility of management actions
             document.getElementById('playlistSearchSection').style.display = isEdit ? 'block' : 'none';
             document.getElementById('deletePlaylistBtn').style.display = isEdit ? 'block' : 'none';
             document.getElementById('editCoverBtn').style.display = isEdit ? 'block' : 'none';
             document.getElementById('toggleEditBtn').textContent = isEdit ? t('done_editing_btn') : t('manage_playlist_btn');
         }
 
+        // editPlaylistCover opens a file dialog to select a new cover image for the current playlist.
         function editPlaylistCover() {
             const input = document.createElement('input');
             input.type = 'file';
@@ -911,13 +957,14 @@
                 const file = e.target.files[0];
                 if (!file) return;
                 try {
+                    // Upload the new cover image file via a POST request
                     const res = await fetch('/api/playlist/cover?name=' + encodeURIComponent(currentPlaylistName), {
                         method: 'POST',
                         body: file
                     });
                     if (res.ok) {
                         showToast("Cover updated!", "var(--success)");
-                        loadPlaylistsManager();
+                        loadPlaylistsManager(); // Refresh manager to show new cover
                     } else {
                         showToast(t('server_error'), "var(--error)");
                     }
@@ -928,6 +975,7 @@
             input.click();
         }
 
+        // removeTrack handles the deletion of a specific track from the currently active playlist.
         async function removeTrack(line) {
             if(!confirm(t('confirm_remove'))) return;
             try {
@@ -937,7 +985,7 @@
                     body: JSON.stringify({playlist: currentPlaylistName, line: line})
                 });
                 if(res.ok) {
-                    loadPlaylistTracks();
+                    loadPlaylistTracks(); // Refresh track list
                     showToast(t('track_removed'), "var(--success)");
                 } else {
                     showToast(t('error_deleting'), "var(--error)");
@@ -945,11 +993,13 @@
             } catch(e) { showToast(t('server_error'), "var(--error)"); }
         }
 
+        // deleteCurrentPlaylist handles the permanent deletion of the current playlist and its directory.
         async function deleteCurrentPlaylist() {
             const cleanName = currentPlaylistName.replace(/\.m3u8?$/i, '');
+            // Require the user to type the playlist name for confirmation
             const input = prompt(t('confirm_delete') + cleanName);
             if (input !== cleanName) {
-                if (input !== null) alert("Annulé: Nom incorrect / Cancelled: Incorrect name.");
+                if (input !== null) alert("Cancelled: Incorrect name.");
                 return;
             }
             try {
@@ -961,13 +1011,14 @@
                 if(res.ok) {
                     showToast(t('playlist_deleted'), "var(--success)");
                     loadPlaylists();
-                    openPlaylistsManager();
+                    openPlaylistsManager(); // Redirect back to manager after deletion
                 } else {
                     showToast(t('error_deleting'), "var(--error)");
                 }
             } catch(e) { showToast(t('server_error'), "var(--error)"); }
         }
 
+        // searchMusicForPlaylist searches the iTunes API specifically to add tracks directly to the currently opened playlist.
         async function searchMusicForPlaylist() {
             const q = document.getElementById('playlistSearchInput').value;
             if(!q) return;
@@ -985,6 +1036,7 @@
                     return;
                 }
 
+                // Render miniature track cards for quick inline addition
                 tracks.forEach(tr => {
                 const card = document.createElement('div');
                 card.className = 'track-card';
@@ -995,17 +1047,22 @@
                         <div class="track-artist">${tr.artist} - ${tr.album}</div>
                     </div>
                 `;
+                // Add the track to the current playlist immediately on click
                 card.onclick = () => addMusicToCurrentPlaylist(tr, card);
                 resultsDiv.appendChild(card);
             });
             } catch(e) {
-                resultsDiv.innerHTML = `<span style="color:var(--error);">Erreur: L'API iTunes ne répond pas.</span>`;
-                showToast("Erreur iTunes API: " + e.message, "var(--error)");
+                resultsDiv.innerHTML = `<span style="color:var(--error);">Error: iTunes API is not responding.</span>`;
+                showToast("iTunes API Error: " + e.message, "var(--error)");
             }
         }
 
+        // addMusicToCurrentPlaylist is a quick-add function for the inline playlist search feature.
+        // It provides visual feedback by dimming the card during processing.
         async function addMusicToCurrentPlaylist(track, cardElement) {
             const originalColor = cardElement.style.borderColor;
+            
+            // Visual feedback of processing
             cardElement.style.borderColor = 'var(--secondary)';
             cardElement.style.opacity = '0.7';
 
@@ -1020,12 +1077,15 @@
                         playlists: [currentPlaylistName]
                     })
                 });
+                
                 let data = {};
                 try { data = await res.json(); } catch(e) {}
                 
                 if(res.ok) {
                     const msg = data.status === 'pending' ? t('added_pending') : t('added_success');
                     showToast(msg, data.status === 'added' ? 'var(--success)' : 'var(--secondary)');
+                    
+                    // If added successfully, immediately refresh the track list view
                     if(data.status === 'added') {
                         loadPlaylistTracks();
                     }
@@ -1035,6 +1095,7 @@
             } catch(e) {
                 showToast(t('conn_error'), "var(--error)");
             } finally {
+                // Restore card visual state
                 cardElement.style.borderColor = originalColor;
                 cardElement.style.opacity = '1';
             }

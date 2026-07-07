@@ -17,29 +17,37 @@ import (
 	"sync"
 )
 
-// --- Configuration ---
+// --- Configuration Structure ---
+// Config holds the application settings.
+// This struct maps directly to the JSON configuration file used by the application.
 type Config struct {
-	LidarrURL     string `json:"lidarrUrl"`
-	LidarrKey     string `json:"lidarrKey"`
-	MusicPath     string `json:"musicPath"`
-	PlaylistsPath string `json:"playlistsPath"`
-	NaviUrl       string `json:"naviUrl"`
-	NaviUser      string `json:"naviUser"`
-	NaviPass      string `json:"naviPass"`
-	NaviKey       string `json:"naviKey"`
-	Language      string `json:"language"`
+	LidarrURL     string `json:"lidarrUrl"`     // Base URL of the Lidarr instance (e.g., http://192.168.1.10:8686)
+	LidarrKey     string `json:"lidarrKey"`     // API Key for authenticating with Lidarr
+	MusicPath     string `json:"musicPath"`     // Absolute path on the host to the music library directory
+	PlaylistsPath string `json:"playlistsPath"` // Absolute path on the host to the directory where .m3u8 playlists are stored
+	NaviUrl       string `json:"naviUrl"`       // Base URL of the Navidrome instance (optional)
+	NaviUser      string `json:"naviUser"`      // Navidrome username (optional)
+	NaviPass      string `json:"naviPass"`      // Navidrome password (optional)
+	NaviKey       string `json:"naviKey"`       // Navidrome generated token/salt for API auth (optional)
+	Language      string `json:"language"`      // Application language preference (e.g., 'en', 'fr')
 }
 
+// Global state variables
 var config Config
-var configMutex sync.RWMutex
+var configMutex sync.RWMutex // Protects concurrent access to the config map
+
+// pendingTracks stores tracks that are requested but not yet downloaded by Lidarr.
+// Key: Lidarr Track ID, Value: List of playlist names where the track should be added once downloaded.
 var pendingTracks map[int][]string
-var pendingMutex sync.RWMutex
+var pendingMutex sync.RWMutex // Protects concurrent access to pendingTracks
 
 const dataDir = "data"
 var configFile = filepath.Join(dataDir, "config.json")
 var pendingFile = filepath.Join(dataDir, "pending_tracks.json")
 
 // --- Initialization ---
+// init is called automatically upon application startup.
+// It ensures the data directory exists and loads the configuration and pending tracks from disk.
 func init() {
 	os.MkdirAll(dataDir, 0755)
 	pendingTracks = make(map[int][]string)
@@ -47,6 +55,7 @@ func init() {
 	loadPending()
 }
 
+// loadConfig reads the configuration file from disk and populates the global config struct.
 func loadConfig() {
 	configMutex.Lock()
 	defer configMutex.Unlock()
@@ -56,6 +65,7 @@ func loadConfig() {
 	}
 }
 
+// saveConfig serializes the global config struct to JSON and writes it to disk.
 func saveConfig() error {
 	configMutex.RLock()
 	defer configMutex.RUnlock()
@@ -63,6 +73,7 @@ func saveConfig() error {
 	return os.WriteFile(configFile, b, 0644)
 }
 
+// loadPending reads the pending tracks from disk, restoring the application's state after a restart.
 func loadPending() {
 	pendingMutex.Lock()
 	defer pendingMutex.Unlock()
@@ -72,6 +83,7 @@ func loadPending() {
 	}
 }
 
+// savePending serializes the pending tracks state to JSON and writes it to disk.
 func savePending() {
 	pendingMutex.RLock()
 	defer pendingMutex.RUnlock()
@@ -81,7 +93,7 @@ func savePending() {
 
 // --- HTTP Server ---
 func main() {
-	// Static files and web routes
+	// Serve static files and handle root web route
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.ServeFile(w, r, "index.html")
@@ -90,17 +102,23 @@ func main() {
 		}
 	})
 
+	// Register API endpoints
 	http.HandleFunc("/api/settings", handleSettings)
 	http.HandleFunc("/api/playlists", handlePlaylists)
 	http.HandleFunc("/api/search", handleSearch)
 	http.HandleFunc("/api/track_status", handleTrackStatus)
 	http.HandleFunc("/api/add", handleAdd)
+	
+	// Webhook endpoint to receive events from Lidarr (e.g., track imported)
 	http.HandleFunc("/webhook", handleWebhook)
 	
+	// Playlist management endpoints
 	http.HandleFunc("/api/playlist/create", handlePlaylistCreate)
 	http.HandleFunc("/api/playlist/read", handlePlaylistRead)
 	http.HandleFunc("/api/playlist/remove_track", handlePlaylistRemoveTrack)
 	http.HandleFunc("/api/playlist/delete", handlePlaylistDelete)
+	
+	// Cover art endpoints
 	http.HandleFunc("/api/cover", handleCover)
 	http.HandleFunc("/api/playlist/cover", handlePlaylistCover)
 
@@ -108,8 +126,9 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// --- Handlers ---
+// --- Route Handlers ---
 
+// handleSettings manages reading (GET) and updating (POST) the application configuration.
 func handleSettings(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		configMutex.RLock()
@@ -123,15 +142,18 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		// Ensure the paths end cleanly
+		// Ensure the paths are clean and do not contain trailing slashes or relative segments
 		newConfig.MusicPath = filepath.Clean(newConfig.MusicPath)
 		newConfig.PlaylistsPath = filepath.Clean(newConfig.PlaylistsPath)
+		// Fallback: If playlists path is empty, default it to the music path
 		if newConfig.PlaylistsPath == "" {
 			newConfig.PlaylistsPath = newConfig.MusicPath
 		}
+		
 		configMutex.Lock()
 		config = newConfig
 		configMutex.Unlock()
+		
 		saveConfig()
 		w.WriteHeader(http.StatusOK)
 		return
@@ -139,6 +161,9 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
+// handleCover serves album cover images for individual tracks.
+// It securely resolves the path for the requested image either relative to the playlist file,
+// or directly from the music directory if the path is absolute or not tied to a playlist.
 func handleCover(w http.ResponseWriter, r *http.Request) {
 	audioPath := r.URL.Query().Get("path")
 	playlistName := r.URL.Query().Get("playlist")
@@ -153,21 +178,34 @@ func handleCover(w http.ResponseWriter, r *http.Request) {
 	configMutex.RUnlock()
 
 	var fullAudioPath string
+	
+	// Determine the absolute path of the audio file to locate its directory
 	if filepath.IsAbs(audioPath) {
+		// Use absolute path directly if provided in the m3u8 file
 		fullAudioPath = audioPath
 	} else if playlistName != "" && !strings.Contains(playlistName, "..") {
+		// Resolve relative path based on the playlist file's directory
 		playlistDir := filepath.Dir(filepath.Join(playlistsPath, playlistName))
 		fullAudioPath = filepath.Join(playlistDir, audioPath)
 	} else {
+		// Fallback: Resolve against the global music path root
 		if strings.Contains(audioPath, "..") {
-			http.Error(w, "Invalid path", http.StatusBadRequest)
+			http.Error(w, "Invalid path: cannot use relative navigation outside a playlist context", http.StatusBadRequest)
 			return
 		}
 		fullAudioPath = filepath.Join(musicPath, audioPath)
 	}
+	
 	dir := filepath.Dir(fullAudioPath)
 
-	covers := []string{"cover.jpg", "cover.png", "folder.jpg", "folder.png", "Cover.jpg", "Cover.png", "Folder.jpg", "Folder.png", "cover.JPG", "folder.JPG"}
+	// List of common cover art filenames used by Lidarr and other media managers
+	// Both lowercase and Capitalized versions are included for Linux filesystem compatibility
+	covers := []string{
+		"cover.jpg", "cover.png", "folder.jpg", "folder.png", 
+		"Cover.jpg", "Cover.png", "Folder.jpg", "Folder.png", 
+		"cover.JPG", "folder.JPG",
+	}
+	
 	for _, c := range covers {
 		coverPath := filepath.Join(dir, c)
 		if _, err := os.Stat(coverPath); err == nil {
@@ -175,13 +213,14 @@ func handleCover(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.Error(w, "Not found", http.StatusNotFound)
+	http.Error(w, "Cover not found", http.StatusNotFound)
 }
 
+// handlePlaylistCover manages reading (GET) and updating (POST) custom cover images for entire playlists.
 func handlePlaylistCover(w http.ResponseWriter, r *http.Request) {
 	playlistName := r.URL.Query().Get("name")
 	if playlistName == "" || strings.Contains(playlistName, "..") {
-		http.Error(w, "Invalid name", http.StatusBadRequest)
+		http.Error(w, "Invalid playlist name", http.StatusBadRequest)
 		return
 	}
 
@@ -192,9 +231,11 @@ func handlePlaylistCover(w http.ResponseWriter, r *http.Request) {
 	playlistDir := filepath.Dir(filepath.Join(playlistsPath, playlistName))
 
 	if r.Method == "GET" {
+		// Attempt to locate a custom cover image in the playlist's directory
 		covers := []string{"cover.jpg", "cover.png", playlistName + "_cover.jpg", playlistName + "_cover.png"}
-		// if playlistName is just "myplaylist.m3u", Dir is playlistsPath.
-		// So we also check for myplaylist_cover.jpg in case it's in the root.
+		
+		// If the playlist is in the root directory, check for a uniquely named cover file
+		// to avoid conflicts with other root playlists (e.g. "myplaylist_cover.jpg")
 		baseName := filepath.Base(playlistName)
 		if ext := filepath.Ext(baseName); ext != "" {
 			baseName = strings.TrimSuffix(baseName, ext)
@@ -208,7 +249,7 @@ func handlePlaylistCover(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		http.Error(w, "Not found", http.StatusNotFound)
+		http.Error(w, "Custom playlist cover not found", http.StatusNotFound)
 		return
 	}
 
@@ -216,7 +257,7 @@ func handlePlaylistCover(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		content, err := io.ReadAll(r.Body)
 		if err != nil || len(content) == 0 {
-			http.Error(w, "Invalid body", http.StatusBadRequest)
+			http.Error(w, "Invalid body content", http.StatusBadRequest)
 			return
 		}
 		
@@ -226,7 +267,8 @@ func handlePlaylistCover(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		coverFileName := "cover.jpg"
-		// If the playlist is in the root (Dir is playlistsPath), use playlist_cover.jpg to avoid conflicts
+		// If the playlist is in the root directory (PlaylistsPath), save it as "basename_cover.jpg"
+		// to prevent overwriting covers of other root playlists.
 		if playlistDir == playlistsPath {
 			coverFileName = baseName + "_cover.jpg"
 		}
@@ -234,7 +276,7 @@ func handlePlaylistCover(w http.ResponseWriter, r *http.Request) {
 		coverPath := filepath.Join(playlistDir, coverFileName)
 		err = os.WriteFile(coverPath, content, 0644)
 		if err != nil {
-			http.Error(w, "Write error", http.StatusInternalServerError)
+			http.Error(w, "Failed to write cover image to disk", http.StatusInternalServerError)
 			return
 		}
 		
@@ -245,34 +287,40 @@ func handlePlaylistCover(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
+// PlaylistInfo represents metadata about a playlist returned to the frontend frontend.
 type PlaylistInfo struct {
-	Name        string   `json:"name"`
-	CustomCover string   `json:"customCover"`
-	TrackCovers []string `json:"trackCovers"`
+	Name        string   `json:"name"`        // Relative path/name of the playlist file
+	CustomCover string   `json:"customCover"` // URL to the custom cover image (if one exists)
+	TrackCovers []string `json:"trackCovers"` // URLs to the first 4 track covers (used to generate a 2x2 grid preview if no custom cover exists)
 }
 
+// handlePlaylists scans the configured playlists directory and returns a list of all available playlists,
+// including preview images (either a custom cover or a grid of the first 4 tracks).
 func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 	configMutex.RLock()
 	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
+	// If no playlist path is configured, return an empty array
 	if playlistsPath == "" {
 		json.NewEncoder(w).Encode([]PlaylistInfo{})
 		return
 	}
 
 	var playlists []PlaylistInfo
+	// Recursively walk the playlist directory to find all .m3u and .m3u8 files
 	filepath.WalkDir(playlistsPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil // Ignore access errors
+			return nil // Safely ignore access/permission errors
 		}
+		
 		ext := strings.ToLower(filepath.Ext(path))
 		if !d.IsDir() && (ext == ".m3u" || ext == ".m3u8") {
+			// Determine the playlist name relative to the base playlist path
 			rel, _ := filepath.Rel(playlistsPath, path)
-			
 			info := PlaylistInfo{Name: rel}
 			
-			// Check for custom cover
+			// Extract the directory and base filename (without extension) for this specific playlist
 			playlistDir := filepath.Dir(path)
 			baseName := filepath.Base(rel)
 			if ext := filepath.Ext(baseName); ext != "" {
@@ -280,10 +328,13 @@ func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 			}
 			
 			customCoverFound := false
+			// Check if a custom cover image exists for this playlist
 			covers := []string{"cover.jpg", "cover.png"}
+			// To avoid conflicts in the root directory, root playlists look for "playlistname_cover.jpg"
 			if playlistDir == playlistsPath {
 				covers = []string{baseName + "_cover.jpg", baseName + "_cover.png"}
 			}
+			
 			for _, c := range covers {
 				if _, err := os.Stat(filepath.Join(playlistDir, c)); err == nil {
 					info.CustomCover = fmt.Sprintf("/api/playlist/cover?name=%s", url.QueryEscape(rel))
@@ -292,13 +343,15 @@ func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			
+			// If no custom cover is found, read the first 4 audio tracks from the playlist file
+			// to generate a 2x2 grid image preview in the UI.
 			if !customCoverFound {
-				// Read first 4 tracks to get grid
 				if content, err := os.ReadFile(path); err == nil {
 					lines := strings.Split(string(content), "\n")
 					var trackCovers []string
 					for _, line := range lines {
 						trimmed := strings.TrimSpace(line)
+						// Ignore empty lines and # comments/metadata
 						if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 							trackCovers = append(trackCovers, fmt.Sprintf("/api/cover?path=%s&playlist=%s", url.QueryEscape(trimmed), url.QueryEscape(rel)))
 							if len(trackCovers) == 4 {
@@ -317,14 +370,16 @@ func handlePlaylists(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(playlists)
 }
 
-// Queries the public iTunes API for quick and accurate track search
+// handleSearch queries the public iTunes Search API to provide fast, accurate autocomplete
+// results when the user is searching for a song to request.
 func handleSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
-		http.Error(w, "Empty search", http.StatusBadRequest)
+		http.Error(w, "Empty search query", http.StatusBadRequest)
 		return
 	}
 
+	// Request up to 15 matching songs from iTunes API
 	itunesURL := fmt.Sprintf("https://itunes.apple.com/search?term=%s&entity=song&limit=15", url.QueryEscape(query))
 	resp, err := http.Get(itunesURL)
 	if err != nil {
@@ -338,7 +393,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(resp.Body).Decode(&result)
 
-	// Formatting the response for the frontend
+	// Format the raw iTunes API response into a simplified structure for the frontend UI
 	var tracks []map[string]interface{}
 	for _, item := range result.Results {
 		tracks = append(tracks, map[string]interface{}{
@@ -353,6 +408,9 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tracks)
 }
 
+// handleTrackStatus checks the current status of a specific track in Lidarr.
+// It verifies if the track is already available in the library and returns a list
+// of playlists that currently include this track.
 func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -365,6 +423,7 @@ func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// First, lookup the album in Lidarr to get its internal ID
 	searchTerm := fmt.Sprintf("%s %s", req.Artist, req.Album)
 	lookupURL := fmt.Sprintf("/api/v1/album/lookup?term=%s", url.QueryEscape(searchTerm))
 	var lookupResults []map[string]interface{}
@@ -381,6 +440,7 @@ func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch all tracks for the found album to find the specific requested track
 	trackURL := fmt.Sprintf("/api/v1/track?albumId=%d", int(albumID))
 	var tracks []map[string]interface{}
 	err = lidarrRequest("GET", trackURL, nil, &tracks)
@@ -389,6 +449,7 @@ func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Find the correct track by fuzzy matching the title
 	var targetTrack map[string]interface{}
 	for _, t := range tracks {
 		title := t["title"].(string)
@@ -398,11 +459,13 @@ func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// If the track isn't found or hasn't been downloaded yet, return an empty array
 	if targetTrack == nil || !targetTrack["hasFile"].(bool) {
 		json.NewEncoder(w).Encode([]string{})
 		return
 	}
 
+	// If the file exists, locate its exact filepath by resolving the trackFileId
 	trackFileID := int(targetTrack["trackFileId"].(float64))
 	var trackFiles []map[string]interface{}
 	lidarrRequest("GET", fmt.Sprintf("/api/v1/trackfile?albumId=%d", int(albumID)), nil, &trackFiles)
@@ -420,6 +483,7 @@ func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Finally, scan the local playlists directory to see which playlists currently include this file
 	configMutex.RLock()
 	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
@@ -431,6 +495,7 @@ func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 		
+		// Calculate the expected relative path as it would appear in the .m3u8 file
 		playlistDir := filepath.Dir(path)
 		relAudioPath, _ := filepath.Rel(playlistDir, filePath)
 		relAudioPath = filepath.ToSlash(relAudioPath)
@@ -452,6 +517,7 @@ func handleTrackStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(existingPlaylists)
 }
 
+// AddRequest represents the JSON payload when a user requests a song to be downloaded/added.
 type AddRequest struct {
 	Title     string   `json:"title"`
 	Artist    string   `json:"artist"`
@@ -459,6 +525,9 @@ type AddRequest struct {
 	Playlists []string `json:"playlists"`
 }
 
+// handleAdd processes user requests to add a track to one or more playlists.
+// If the track is missing in Lidarr, it requests a download and adds it to the 'pending' list.
+// If the track is already available, it immediately adds the track to the requested playlists.
 func handleAdd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -471,7 +540,7 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Search for the album in Lidarr
+	// Step 1: Search for the album in Lidarr using the artist and album name
 	searchTerm := fmt.Sprintf("%s %s", req.Artist, req.Album)
 	lookupURL := fmt.Sprintf("/api/v1/album/lookup?term=%s", url.QueryEscape(searchTerm))
 	var lookupResults []map[string]interface{}
@@ -484,7 +553,7 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	bestAlbum := lookupResults[0]
 	albumID := int(bestAlbum["id"].(float64))
 
-	// 2. If the album does not exist in Lidarr (ID == 0), add it
+	// Step 2: If the album does not exist in Lidarr's monitored library (ID == 0), add it
 	if albumID == 0 {
 		bestAlbum["addOptions"] = map[string]interface{}{
 			"searchForNewAlbum": true,
@@ -503,16 +572,16 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 3. Get album tracks
+	// Step 3: Fetch the tracks for the monitored album to identify the requested track ID
 	trackURL := fmt.Sprintf("/api/v1/track?albumId=%d", albumID)
 	var tracks []map[string]interface{}
 	err = lidarrRequest("GET", trackURL, nil, &tracks)
 	if err != nil {
-		http.Error(w, "Error retrieving tracks", http.StatusInternalServerError)
+		http.Error(w, "Error retrieving tracks from Lidarr", http.StatusInternalServerError)
 		return
 	}
 
-	// Find the correct track
+	// Fuzzy match the requested title against Lidarr's track metadata
 	var targetTrack map[string]interface{}
 	for _, t := range tracks {
 		title := t["title"].(string)
@@ -530,11 +599,11 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	trackID := int(targetTrack["id"].(float64))
 	hasFile := targetTrack["hasFile"].(bool)
 
-	// 4. Scenario A (Already downloaded)
+	// Step 4: Scenario A - The track is already downloaded. Add it to playlists directly.
 	if hasFile {
 		trackFileID := int(targetTrack["trackFileId"].(float64))
 		
-		// Get all album files to find the correct path
+		// Fetch all file paths for the album to locate the exact path of the track
 		var trackFiles []map[string]interface{}
 		lidarrRequest("GET", fmt.Sprintf("/api/v1/trackfile?albumId=%d", albumID), nil, &trackFiles)
 		
@@ -572,7 +641,7 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "pending", "message": "Missing track, Lidarr download requested..."})
 }
 
-// Webhook Route
+// handleWebhook receives real-time events triggered by Lidarr (e.g., when a track is downloaded or upgraded).
 func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	var payload map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -581,8 +650,10 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	eventType, _ := payload["eventType"].(string)
+	// We are interested in events that indicate a new or updated audio file
 	if eventType == "TrackDownload" || eventType == "Download" || eventType == "Upgrade" || eventType == "TrackUpgrade" {
-		// Analyze imported tracks
+		
+		// Parse the tracks and track file details from the webhook payload
 		tracksInterface, hasTracks := payload["tracks"].([]interface{})
 		trackFile, hasFile := payload["trackFile"].(map[string]interface{})
 
@@ -594,10 +665,12 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 				tMap := tInter.(map[string]interface{})
 				if tID, ok := tMap["id"].(float64); ok {
 					trackID := int(tID)
-					// If the track was pending
+					// Check if this newly downloaded track was previously requested and queued in pendingTracks
 					if playlists, exists := pendingTracks[trackID]; exists {
 						log.Printf("Pending track imported: %d -> %s\n", trackID, filePath)
+						// Add the newly downloaded track to the requested playlists
 						syncPlaylists(filePath, playlists)
+						// Remove it from the pending list
 						delete(pendingTracks, trackID)
 					}
 				}
@@ -605,7 +678,7 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 			pendingMutex.Unlock()
 			savePending()
 
-			// Handle Upgrades
+			// Handle track upgrades (e.g., a higher quality version replaced an older version)
 			isUpgrade, _ := payload["isUpgrade"].(bool)
 			deletedFiles, hasDeleted := payload["deletedFiles"].([]interface{})
 			if isUpgrade && hasDeleted {
@@ -619,17 +692,19 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// Trigger Navidrome scan
+			// Automatically trigger a Navidrome scan so the new files appear immediately in the UI
 			go startNavidromeScan()
 		}
 	}
 
+	// Always return 200 OK so Lidarr knows the webhook was received
 	w.WriteHeader(http.StatusOK)
 }
 
 // --- Helpers ---
 
-// Updates the path of an audio file in all .m3u playlists (used for upgrades)
+// updatePathInPlaylists iterates through all .m3u/.m3u8 files and replaces instances of an old audio path
+// with a new audio path. This is crucial for handling file upgrades (e.g., MP3 -> FLAC) triggered by Lidarr.
 func updatePathInPlaylists(oldAudioPath, newAudioPath string) {
 	configMutex.RLock()
 	playlistsPath := config.PlaylistsPath
@@ -643,6 +718,7 @@ func updatePathInPlaylists(oldAudioPath, newAudioPath string) {
 
 		playlistDir := filepath.Dir(path)
 		
+		// Convert absolute paths to relative paths as they appear in the playlist files
 		relOldAudioPath, _ := filepath.Rel(playlistDir, oldAudioPath)
 		relOldAudioPath = filepath.ToSlash(relOldAudioPath)
 		
@@ -657,6 +733,7 @@ func updatePathInPlaylists(oldAudioPath, newAudioPath string) {
 		lines := strings.Split(string(content), "\n")
 		modified := false
 
+		// Search and replace the specific old path with the new path
 		for i, line := range lines {
 			trimmed := strings.TrimSpace(line)
 			if trimmed == relOldAudioPath {
@@ -674,17 +751,21 @@ func updatePathInPlaylists(oldAudioPath, newAudioPath string) {
 	})
 }
 
-// Synchronizes the presence of the audio path in .m3u files
+// syncPlaylists ensures a specific audio file is present ONLY in the playlists specified in `checkedPlaylists`.
+// If the track is not present in a requested playlist, it is appended.
+// If the track is present in an unchecked playlist, it is removed.
 func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 	configMutex.RLock()
 	playlistsPath := config.PlaylistsPath
 	configMutex.RUnlock()
 
+	// Convert the requested playlist slice into a map for fast lookup O(1)
 	checkedMap := make(map[string]bool)
 	for _, p := range checkedPlaylists {
 		checkedMap[p] = true
 	}
 
+	// Recursively walk through all playlist files
 	return filepath.WalkDir(playlistsPath, func(path string, d fs.DirEntry, err error) error {
 		ext := strings.ToLower(filepath.Ext(path))
 		if err != nil || d.IsDir() || (ext != ".m3u" && ext != ".m3u8") {
@@ -695,6 +776,7 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 		shouldBeInPlaylist := checkedMap[relPlaylistPath]
 
 		playlistDir := filepath.Dir(path)
+		// Calculate the relative path of the audio file from this specific playlist's directory
 		relAudioPath, _ := filepath.Rel(playlistDir, audioPath)
 		relAudioPath = filepath.ToSlash(relAudioPath)
 
@@ -709,38 +791,44 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 		modified := false
 		hasExtM3u := false
 
+		// Parse the existing playlist file line by line
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
 			if trimmed == "" {
-				continue // Ignore existing empty lines
+				continue // Ignore existing empty lines to clean up the file
 			}
 			if strings.HasPrefix(trimmed, "#EXTM3U") {
 				hasExtM3u = true
 			}
+			
+			// Check if the current line points to the audio track we are synchronizing
 			if trimmed == relAudioPath {
 				found = true
 				if shouldBeInPlaylist {
-					newLines = append(newLines, line) // keep
+					newLines = append(newLines, line) // Keep it in the playlist
 				} else {
-					modified = true // removal
+					modified = true // Remove it from the playlist
 				}
 			} else {
-				newLines = append(newLines, line) // normal line
+				newLines = append(newLines, line) // Keep all other tracks and comments
 			}
 		}
 
+		// If the track is supposed to be in the playlist but wasn't found, add it
 		if shouldBeInPlaylist && !found {
-			newLines = append(newLines, relAudioPath) // addition
+			newLines = append(newLines, relAudioPath) // Append the track path
 			modified = true
 		}
 
+		// Ensure the playlist has the required M3U header
 		if !hasExtM3u {
 			newLines = append([]string{"#EXTM3U"}, newLines...)
 			modified = true
 		}
 
+		// If we made changes (added, removed, or formatted), save the updated playlist
 		if modified {
-			// Add an empty line at the end to keep it clean
+			// Add an empty line at the end to keep the file clean and POSIX compliant
 			out := strings.Join(newLines, "\n")
 			if !strings.HasSuffix(out, "\n") {
 				out += "\n"
@@ -752,7 +840,7 @@ func syncPlaylists(audioPath string, checkedPlaylists []string) error {
 	})
 }
 
-// Performs an HTTP request to the Lidarr API
+// lidarrRequest is a generic helper function to perform API calls to Lidarr.
 func lidarrRequest(method, endpoint string, body interface{}, out interface{}) error {
 	configMutex.RLock()
 	lURL := strings.TrimRight(config.LidarrURL, "/")
@@ -789,12 +877,15 @@ func lidarrRequest(method, endpoint string, body interface{}, out interface{}) e
 	return nil
 }
 
-// --- Playlist CRUD ---
+// --- Playlist CRUD Operations ---
 
+// CreatePlaylistReq represents the incoming JSON request to create a new playlist.
 type CreatePlaylistReq struct {
 	Name string `json:"name"`
 }
 
+// handlePlaylistCreate creates a new playlist directory and an empty .m3u8 file.
+// It ensures that playlists are organized into folders to allow custom cover images.
 func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -802,14 +893,18 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	var req CreatePlaylistReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
+	
 	name := strings.TrimSpace(req.Name)
+	// Basic security check to prevent directory traversal or malformed paths
 	if name == "" || strings.Contains(name, "..") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
-		http.Error(w, "Invalid name", http.StatusBadRequest)
+		http.Error(w, "Invalid playlist name provided", http.StatusBadRequest)
 		return
 	}
+	
+	// Determine the base name (folder name) and the file name
 	baseName := name
 	lowName := strings.ToLower(name)
 	if strings.HasSuffix(lowName, ".m3u") || strings.HasSuffix(lowName, ".m3u8") {
@@ -825,36 +920,43 @@ func handlePlaylistCreate(w http.ResponseWriter, r *http.Request) {
 	dirPath := filepath.Join(playlistsPath, baseName)
 	fullPath := filepath.Join(dirPath, name)
 	
+	// Create the dedicated folder for the playlist
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
-		http.Error(w, "Error creating directory", http.StatusInternalServerError)
+		http.Error(w, "Failed to create playlist directory", http.StatusInternalServerError)
 		return
 	}
 
+	// Prevent overwriting existing playlists
 	if _, err := os.Stat(fullPath); err == nil {
-		http.Error(w, "Playlist already exists", http.StatusConflict)
+		http.Error(w, "Playlist file already exists", http.StatusConflict)
 		return
 	}
 
+	// Initialize the file with the required M3U header
 	if err := os.WriteFile(fullPath, []byte("#EXTM3U\n"), 0644); err != nil {
-		http.Error(w, "Error creating file", http.StatusInternalServerError)
+		http.Error(w, "Failed to write playlist file", http.StatusInternalServerError)
 		return
 	}
+	
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
+// PlaylistItem represents a single audio track inside a playlist, returned to the frontend.
 type PlaylistItem struct {
-	Line    string `json:"line"`
-	Display string `json:"display"`
-	Cover   string `json:"cover"`
-	Title   string `json:"title"`
-	Artist  string `json:"artist"`
-	Album   string `json:"album"`
+	Line    string `json:"line"`    // The raw path as written in the .m3u8 file
+	Display string `json:"display"` // Legacy property for backwards compatibility
+	Cover   string `json:"cover"`   // URL to fetch the album cover for this specific track
+	Title   string `json:"title"`   // Track title
+	Artist  string `json:"artist"`  // Artist name
+	Album   string `json:"album"`   // Album name
 }
 
+// handlePlaylistRead reads the contents of a specific playlist and extracts metadata
+// for each track to display in the UI.
 func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" || strings.Contains(name, "..") {
-		http.Error(w, "Invalid name", http.StatusBadRequest)
+		http.Error(w, "Invalid playlist name provided", http.StatusBadRequest)
 		return
 	}
 
@@ -867,9 +969,9 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			http.Error(w, "Playlist not found", http.StatusNotFound)
+			http.Error(w, "Playlist file not found", http.StatusNotFound)
 		} else {
-			http.Error(w, "Read error", http.StatusInternalServerError)
+			http.Error(w, "Failed to read playlist file", http.StatusInternalServerError)
 		}
 		return
 	}
@@ -878,11 +980,17 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 	var items []PlaylistItem
 	var lastExtinf string
 
+	// Iterate through the playlist line by line to extract track paths and metadata
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
+		
+		// Skip empty lines
 		if trimmed == "" {
 			continue
 		}
+		
+		// If the line is a metadata tag (#EXTINF), extract the track information.
+		// Standard format: #EXTINF:123,Artist - Album - Title
 		if strings.HasPrefix(trimmed, "#EXTINF:") {
 			parts := strings.SplitN(trimmed, ",", 2)
 			if len(parts) == 2 {
@@ -890,11 +998,16 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		}
+		
+		// Skip any other comments or unsupported tags
 		if strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 
+		// At this point, the line is a file path to an audio track
 		title, artist, album := "", "", ""
+		
+		// 1. Try to extract metadata from the preceding #EXTINF tag if one existed
 		if lastExtinf != "" {
 			parts := strings.Split(lastExtinf, " - ")
 			if len(parts) >= 3 {
@@ -909,12 +1022,14 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// 2. If no title was found in the metadata, use the file name
 		if title == "" {
 			base := filepath.Base(trimmed)
 			title = strings.TrimSuffix(base, filepath.Ext(base))
 		}
 		
-		// Fallback to path extraction for artist/album if missing
+		// 3. Fallback: If artist or album are missing, try to guess them from the directory structure.
+		// (e.g., .../Artist/Album/Track.mp3)
 		if artist == "" || album == "" {
 			parts := strings.Split(filepath.ToSlash(trimmed), "/")
 			if len(parts) >= 3 {
@@ -923,7 +1038,8 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Clean up title if it contains artist and album (like Lidarr file names)
+		// 4. Clean up the title if it contains redundant artist/album information 
+		// (Common when Lidarr renames files in the format "Artist - Album - TrackTitle.mp3")
 		if lastExtinf == "" {
 			cleanTitle := title
 			if artist != "" {
@@ -932,7 +1048,8 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 			if album != "" {
 				cleanTitle = strings.TrimPrefix(cleanTitle, album+" - ")
 			}
-			// Check if it starts with a track number like "01 - "
+			
+			// Remove leading track numbers (e.g., "01 - Track Title")
 			parts := strings.SplitN(cleanTitle, " - ", 2)
 			if len(parts) == 2 {
 				isNumeric := true
@@ -957,6 +1074,8 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 			Album:   album,
 			Cover:   fmt.Sprintf("/api/cover?path=%s&playlist=%s", url.QueryEscape(trimmed), url.QueryEscape(name)),
 		})
+		
+		// Reset the metadata for the next track
 		lastExtinf = ""
 	}
 
@@ -964,11 +1083,13 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
+// RemoveTrackReq represents the JSON payload to remove a specific track from a playlist.
 type RemoveTrackReq struct {
-	Playlist string `json:"playlist"`
-	Line     string `json:"line"`
+	Playlist string `json:"playlist"` // The name/path of the playlist
+	Line     string `json:"line"`     // The exact path string of the track to remove as it appears in the .m3u8 file
 }
 
+// handlePlaylistRemoveTrack handles requests to remove a single track from a playlist file.
 func handlePlaylistRemoveTrack(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -976,11 +1097,11 @@ func handlePlaylistRemoveTrack(w http.ResponseWriter, r *http.Request) {
 	}
 	var req RemoveTrackReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
 	if strings.Contains(req.Playlist, "..") {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
+		http.Error(w, "Invalid playlist path", http.StatusBadRequest)
 		return
 	}
 
@@ -992,45 +1113,56 @@ func handlePlaylistRemoveTrack(w http.ResponseWriter, r *http.Request) {
 
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
-		http.Error(w, "Read error", http.StatusInternalServerError)
+		http.Error(w, "Failed to read playlist file", http.StatusInternalServerError)
 		return
 	}
 
 	lines := strings.Split(string(content), "\n")
 	var newLines []string
 	
+	// Iterate backwards to easily remove the #EXTINF tag immediately preceding the targeted track
 	skipNext := false
 	for i := len(lines) - 1; i >= 0; i-- {
 		trimmed := strings.TrimSpace(lines[i])
+		
+		// If we skipped the track in the previous iteration, this line should be its #EXTINF metadata.
+		// Skip it as well to keep the playlist clean.
 		if skipNext && strings.HasPrefix(trimmed, "#EXTINF:") {
 			skipNext = false
 			continue
 		}
 		skipNext = false
 
+		// Identify the track to remove
 		if trimmed == req.Line {
-			skipNext = true
+			skipNext = true // Signal to skip the #EXTINF metadata on the next loop iteration (which is the preceding line)
 			continue
 		}
+		
+		// Prepend to maintain original order since we are iterating backwards
 		newLines = append([]string{lines[i]}, newLines...)
 	}
 
 	out := strings.Join(newLines, "\n")
+	// Ensure the file ends with a clean newline character
 	if len(out) > 0 && !strings.HasSuffix(out, "\n") {
 		out += "\n"
 	}
 
 	if err := os.WriteFile(fullPath, []byte(out), 0644); err != nil {
-		http.Error(w, "Write error", http.StatusInternalServerError)
+		http.Error(w, "Failed to update playlist file", http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
+// DeletePlaylistReq represents the JSON payload to delete an entire playlist.
 type DeletePlaylistReq struct {
-	Playlist string `json:"playlist"`
+	Playlist string `json:"playlist"` // The name/path of the playlist to delete
 }
 
+// handlePlaylistDelete completely removes a playlist and its containing directory (if empty).
+// It also attempts to delete the playlist from the integrated Navidrome instance.
 func handlePlaylistDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -1038,11 +1170,11 @@ func handlePlaylistDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	var req DeletePlaylistReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
 	if strings.Contains(req.Playlist, "..") {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
+		http.Error(w, "Invalid playlist path", http.StatusBadRequest)
 		return
 	}
 
@@ -1052,17 +1184,20 @@ func handlePlaylistDelete(w http.ResponseWriter, r *http.Request) {
 
 	fullPath := filepath.Join(playlistsPath, req.Playlist)
 
+	// Remove the actual .m3u8 file
 	if err := os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
-		http.Error(w, "Delete error", http.StatusInternalServerError)
+		http.Error(w, "Failed to delete playlist file from disk", http.StatusInternalServerError)
 		return
 	}
 
+	// Trigger async deletion from Navidrome to keep the UI in sync
 	go deletePlaylistFromNavidrome(req.Playlist)
 
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
-// Helper to delete playlist from Navidrome via Subsonic API
+// deletePlaylistFromNavidrome interacts with the Subsonic API exposed by Navidrome
+// to forcefully remove a playlist from its internal database after it was deleted from the disk.
 func deletePlaylistFromNavidrome(playlistFileName string) {
 	configMutex.RLock()
 	nUrl := config.NaviUrl
@@ -1071,16 +1206,17 @@ func deletePlaylistFromNavidrome(playlistFileName string) {
 	configMutex.RUnlock()
 
 	if nUrl == "" || nUser == "" || nPass == "" {
-		return // Not configured
+		return // Navidrome integration is not configured
 	}
 
 	playlistName := strings.TrimSuffix(playlistFileName, filepath.Ext(playlistFileName))
 
+	// Generate authentication token based on Subsonic API specifications
 	salt := "sdlm123"
 	hash := md5.Sum([]byte(nPass + salt))
 	token := hex.EncodeToString(hash[:])
 	
-	// Get Playlists
+	// Step 1: Fetch all playlists to discover the internal ID of the target playlist
 	getURL := fmt.Sprintf("%s/rest/getPlaylists?u=%s&t=%s&s=%s&v=1.16.1&c=SDLMReqHub&f=json", strings.TrimRight(nUrl, "/"), url.QueryEscape(nUser), token, salt)
 	
 	resp, err := http.Get(getURL)
@@ -1094,6 +1230,7 @@ func deletePlaylistFromNavidrome(playlistFileName string) {
 		return
 	}
 
+	// Navigate the heavily nested JSON response from the Subsonic API
 	root, ok := result["subsonic-response"].(map[string]interface{})
 	if !ok { return }
 	
@@ -1116,15 +1253,16 @@ func deletePlaylistFromNavidrome(playlistFileName string) {
 	}
 
 	if targetId == "" {
-		return // Not found
+		return // Playlist not found in Navidrome's database
 	}
 
-	// Delete Playlist
+	// Step 2: Request deletion using the discovered internal ID
 	delURL := fmt.Sprintf("%s/rest/deletePlaylist?id=%s&u=%s&t=%s&s=%s&v=1.16.1&c=SDLMReqHub&f=json", strings.TrimRight(nUrl, "/"), targetId, url.QueryEscape(nUser), token, salt)
 	http.Get(delURL)
 }
 
-// Helper to start a Navidrome scan via Subsonic API
+// startNavidromeScan triggers a full media scan in Navidrome.
+// This ensures that newly downloaded tracks immediately appear in the Navidrome UI.
 func startNavidromeScan() {
 	configMutex.RLock()
 	nUrl := config.NaviUrl
@@ -1133,14 +1271,15 @@ func startNavidromeScan() {
 	configMutex.RUnlock()
 
 	if nUrl == "" || nUser == "" || nPass == "" {
-		return // Not configured
+		return // Navidrome integration is not configured
 	}
 
+	// Generate authentication token
 	salt := "sdlm123"
 	hash := md5.Sum([]byte(nPass + salt))
 	token := hex.EncodeToString(hash[:])
 	
-	// Start Scan
+	// Trigger the scan endpoint
 	scanURL := fmt.Sprintf("%s/rest/startScan?u=%s&t=%s&s=%s&v=1.16.1&c=SDLMReqHub&f=json", strings.TrimRight(nUrl, "/"), url.QueryEscape(nUser), token, salt)
 	http.Get(scanURL)
 }
