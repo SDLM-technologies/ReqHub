@@ -2,9 +2,11 @@
 FROM golang:1.21-alpine AS builder
 
 WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
 COPY main.go .
 # Compile with cgo disabled, targeting linux/amd64 (or arm64 depending on your TrueNAS)
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o reqhub main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o reqhub .
 
 # Stage 2: Ultra-lightweight final image
 FROM alpine:latest

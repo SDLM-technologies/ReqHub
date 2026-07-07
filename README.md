@@ -14,7 +14,7 @@ The application allows you to search for a specific track, trigger its download 
   - **Missing Track Scenario:** If the music is missing, the app instructs Lidarr to search for and download the album.
 - **Automated Addition (Webhook):** As soon as Lidarr finishes downloading, ReqHub captures the file and injects it into the playlists you previously checked.
 - **Built-in Playlist Manager:** Dedicated interface to create, read, modify (add/remove tracks via UI), and delete your local `.m3u` playlists.
-- **Ultra Lightweight:** Backend written in **pure Go** (no external dependencies, `net/http` only). Frontend in **native HTML/CSS/JS**.
+- **Ultra Lightweight & Fast:** Backend written in Go. Extracts exact metadata and Cover Art images **natively from local ID3/FLAC tags** for instantaneous loading without external APIs. Frontend in **native HTML/CSS/JS**.
 - **Modern & Responsive UI:** Fully redesigned interface that dynamically adapts to your device (desktop or smartphone). Includes a brand new visual identity and smooth modal popups for adding tracks.
 - **Auto Theme Support:** Automatically switches between Light and Dark mode based on your device's system preferences.
 - **NAS Optimized (TrueNAS, Unraid, etc.):** CPU/RAM consumption close to zero, multi-stage Docker build resulting in a tiny Alpine/Scratch final image.
@@ -118,6 +118,7 @@ The application will automatically handle everything else!
 
 ## 📂 File Architecture
 - `main.go` : Backend source code (Go).
+- `go.mod` / `go.sum` : Go modules configuration and dependencies.
 - `index.html` : Single-page user interface (HTML/JS/CSS).
 - `Dockerfile` : Recipe to build the lightweight container.
 - `docker-compose.yml` : Docker deployment configuration.

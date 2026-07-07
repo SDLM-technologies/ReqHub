@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"github.com/dhowden/tag"
 )
 
 // --- Configuration Structure ---
@@ -200,9 +201,22 @@ func handleCover(w http.ResponseWriter, r *http.Request) {
 		fullAudioPath = filepath.Join(musicPath, audioPath)
 	}
 	
+	// Step 1: Try to read embedded cover art directly from the audio file tags (ID3/FLAC)
+	if f, err := os.Open(fullAudioPath); err == nil {
+		if m, err := tag.ReadFrom(f); err == nil {
+			if pic := m.Picture(); pic != nil && len(pic.Data) > 0 {
+				w.Header().Set("Content-Type", pic.MIMEType)
+				w.Write(pic.Data)
+				f.Close()
+				return
+			}
+		}
+		f.Close()
+	}
+
 	dir := filepath.Dir(fullAudioPath)
 
-	// List of common cover art filenames used by Lidarr and other media managers
+	// Step 2: List of common cover art filenames used by Lidarr and other media managers
 	// Both lowercase and Capitalized versions are included for Linux filesystem compatibility
 	covers := []string{
 		"cover.jpg", "cover.png", "folder.jpg", "folder.png", 
@@ -1055,21 +1069,46 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// At this point, the line is a file path to an audio track
-		title, artist, album := "", "", ""
-		// 1. Try to extract metadata from the preceding #EXTINF tag if one existed
-		if lastExtinf != "" {
-			parts := strings.Split(lastExtinf, " - ")
-			if len(parts) >= 3 {
-				artist = strings.TrimSpace(parts[0])
-				album = strings.TrimSpace(parts[1])
-				title = strings.TrimSpace(parts[2])
-			} else if len(parts) == 2 {
-				artist = strings.TrimSpace(parts[0])
-				title = strings.TrimSpace(parts[1])
-			} else {
-				title = lastExtinf
-			}
+		// Determine absolute path of the audio file
+		var fullAudioPath string
+		if filepath.IsAbs(trimmed) {
+			fullAudioPath = trimmed
+		} else {
+			playlistDir := filepath.Dir(fullPath)
+			fullAudioPath = filepath.Join(playlistDir, trimmed)
 		}
+
+		title, artist, album := "", "", ""
+		
+		// Attempt to read metadata tags (ID3/FLAC) directly from the local file
+		if f, err := os.Open(fullAudioPath); err == nil {
+			if m, err := tag.ReadFrom(f); err == nil {
+				title = m.Title()
+				artist = m.Artist()
+				if artist == "" {
+					artist = m.AlbumArtist()
+				}
+				album = m.Album()
+			}
+			f.Close()
+		}
+
+		// If the file doesn't exist or tags are incomplete, fallback to extracting from EXTINF / filename
+		if title == "" || artist == "" || album == "" {
+			// 1. Try to extract metadata from the preceding #EXTINF tag if one existed
+			if lastExtinf != "" {
+				parts := strings.Split(lastExtinf, " - ")
+				if len(parts) >= 3 {
+					if artist == "" { artist = strings.TrimSpace(parts[0]) }
+					if album == "" { album = strings.TrimSpace(parts[1]) }
+					if title == "" { title = strings.TrimSpace(parts[2]) }
+				} else if len(parts) == 2 {
+					if artist == "" { artist = strings.TrimSpace(parts[0]) }
+					if title == "" { title = strings.TrimSpace(parts[1]) }
+				} else {
+					if title == "" { title = lastExtinf }
+				}
+			}
 
 		// 2. If no title was found in the metadata, use the file name
 		if title == "" {
@@ -1085,6 +1124,7 @@ func handlePlaylistRead(w http.ResponseWriter, r *http.Request) {
 				if artist == "" { artist = parts[len(parts)-3] }
 				if album == "" { album = parts[len(parts)-2] }
 			}
+		}
 		}
 
 		// Clean up the extracted metadata to ensure clean UI and accurate Lidarr searches
