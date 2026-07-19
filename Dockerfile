@@ -4,7 +4,7 @@ FROM golang:1.21-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
-COPY main.go .
+COPY *.go .
 # Compile with cgo disabled, targeting linux/amd64 (or arm64 depending on your TrueNAS)
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o reqhub .
 
