@@ -17,6 +17,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
+
 	"github.com/dhowden/tag"
 )
 
@@ -40,9 +42,17 @@ type Config struct {
 var config Config
 var configMutex sync.RWMutex // Protects concurrent access to the config map
 
-// pendingTracks stores tracks that are requested but not yet downloaded by Lidarr.
-// Key: Lidarr Track ID, Value: List of playlist names where the track should be added once downloaded.
-var pendingTracks map[int][]string
+// PendingRequest stores the status and metadata for a requested track.
+type PendingRequest struct {
+	Playlists     []string `json:"playlists"`
+	AddedAt       int64    `json:"addedAt"`
+	LastCheckedAt int64    `json:"lastCheckedAt"`
+	Status        string   `json:"status"` // "pending", "downloaded"
+}
+
+// pendingTracks stores tracks that are requested from Lidarr.
+// Key: Lidarr Track ID, Value: PendingRequest struct with tracking info.
+var pendingTracks map[int]PendingRequest
 var pendingMutex sync.RWMutex // Protects concurrent access to pendingTracks
 
 const dataDir = "data"
@@ -54,7 +64,7 @@ var pendingFile = filepath.Join(dataDir, "pending_tracks.json")
 // It ensures the data directory exists and loads the configuration and pending tracks from disk.
 func init() {
 	os.MkdirAll(dataDir, 0755)
-	pendingTracks = make(map[int][]string)
+	pendingTracks = make(map[int]PendingRequest)
 	loadConfig()
 	loadPending()
 }
@@ -97,6 +107,9 @@ func savePending() {
 
 // --- HTTP Server ---
 func main() {
+	// Start background checker for Lidarr requests
+	go startPendingChecker()
+
 	// Serve static files and handle root web route
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
@@ -793,7 +806,12 @@ func processAddRequest(req AddRequest) (string, string, error) {
 	}
 
 	pendingMutex.Lock()
-	pendingTracks[trackID] = req.Playlists
+	pendingTracks[trackID] = PendingRequest{
+		Playlists:     req.Playlists,
+		AddedAt:       time.Now().Unix(),
+		LastCheckedAt: time.Now().Unix(),
+		Status:        "pending",
+	}
 	pendingMutex.Unlock()
 	savePending()
 
@@ -830,12 +848,14 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 				if tID, ok := tMap["id"].(float64); ok {
 					trackID := int(tID)
 					// Check if this newly downloaded track was previously requested and queued in pendingTracks
-					if playlists, exists := pendingTracks[trackID]; exists {
+					if pendingReq, exists := pendingTracks[trackID]; exists && pendingReq.Status == "pending" {
 						log.Printf("Pending track imported: %d -> %s\n", trackID, filePath)
 						// Add the newly downloaded track to the requested playlists
-						syncPlaylists(filePath, playlists)
-						// Remove it from the pending list
-						delete(pendingTracks, trackID)
+						syncPlaylists(filePath, pendingReq.Playlists)
+						// Update status to downloaded instead of removing
+						pendingReq.Status = "downloaded"
+						pendingReq.LastCheckedAt = time.Now().Unix()
+						pendingTracks[trackID] = pendingReq
 					}
 				}
 			}
@@ -1509,4 +1529,96 @@ func startNavidromeScan() {
 	// Trigger the scan endpoint
 	scanURL := fmt.Sprintf("%s/rest/startScan?u=%s&t=%s&s=%s&v=1.16.1&c=SDLMReqHub&f=json", strings.TrimRight(nUrl, "/"), url.QueryEscape(nUser), token, salt)
 	http.Get(scanURL)
+}
+
+// startPendingChecker periodically checks the status of pending Lidarr requests.
+// It runs every 24 hours and processes entries that haven't been checked in 7 days.
+func startPendingChecker() {
+	time.Sleep(5 * time.Minute) // Wait for app to initialize and stabilize
+	for {
+		pendingMutex.Lock()
+		tracksCopy := make(map[int]PendingRequest)
+		for k, v := range pendingTracks {
+			tracksCopy[k] = v
+		}
+		pendingMutex.Unlock()
+
+		now := time.Now().Unix()
+		changed := false
+
+		for trackID, req := range tracksCopy {
+			if now-req.LastCheckedAt < 7*24*3600 {
+				continue
+			}
+
+			if req.Status == "pending" {
+				var trackInfo map[string]interface{}
+				err := lidarrRequest("GET", fmt.Sprintf("/api/v1/track/%d", trackID), nil, &trackInfo)
+				if err == nil && trackInfo != nil {
+					albumIDVal, okAlbum := trackInfo["albumId"].(float64)
+					hasFile, okFile := trackInfo["hasFile"].(bool)
+
+					if okAlbum {
+						albumID := int(albumIDVal)
+						if okFile && hasFile {
+							// Webhook might have missed it, but it is downloaded
+							trackFileID := int(trackInfo["trackFileId"].(float64))
+							var trackFiles []map[string]interface{}
+							lidarrRequest("GET", fmt.Sprintf("/api/v1/trackfile?albumId=%d", albumID), nil, &trackFiles)
+
+							var filePath string
+							for _, tf := range trackFiles {
+								if int(tf["id"].(float64)) == trackFileID {
+									filePath = tf["path"].(string)
+									break
+								}
+							}
+							if filePath != "" {
+								syncPlaylists(filePath, req.Playlists)
+								req.Status = "downloaded"
+							}
+						} else {
+							// Still missing, re-trigger search
+							lidarrRequest("POST", "/api/v1/command", map[string]interface{}{
+								"name":     "AlbumSearch",
+								"albumIds": []int{albumID},
+							}, nil)
+						}
+					}
+				}
+				req.LastCheckedAt = now
+				pendingMutex.Lock()
+				pendingTracks[trackID] = req
+				pendingMutex.Unlock()
+				changed = true
+
+			} else if req.Status == "downloaded" {
+				var trackInfo map[string]interface{}
+				err := lidarrRequest("GET", fmt.Sprintf("/api/v1/track/%d", trackID), nil, &trackInfo)
+				if err == nil && trackInfo != nil {
+					if hasFile, ok := trackInfo["hasFile"].(bool); ok && hasFile {
+						// Verified after 7 days, remove it from DB
+						pendingMutex.Lock()
+						delete(pendingTracks, trackID)
+						pendingMutex.Unlock()
+						changed = true
+					} else {
+						// File missing? Revert to pending
+						req.Status = "pending"
+						req.LastCheckedAt = now
+						pendingMutex.Lock()
+						pendingTracks[trackID] = req
+						pendingMutex.Unlock()
+						changed = true
+					}
+				}
+			}
+		}
+
+		if changed {
+			savePending()
+		}
+
+		time.Sleep(24 * time.Hour)
+	}
 }

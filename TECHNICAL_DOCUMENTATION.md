@@ -21,6 +21,13 @@ ReqHub employs a unidirectional event stream to keep connected clients synchroni
 2. **HTTP Handler**: The `/api/events` endpoint sets headers to `text/event-stream` and `Connection: keep-alive`. It blocks inside a `for` loop, waiting to receive messages from its assigned channel, writing them to the `http.ResponseWriter` and calling `w.(http.Flusher).Flush()`.
 3. **Conflict Resolution**: If the frontend receives an `UPDATE_NEEDED` ping but currently has unsynchronized offline tasks in `localStorage`, it deliberately ignores the SSE refresh to prevent the user's offline queue from being overwritten (Client Wins strategy). Otherwise, it triggers `loadPlaylists()`.
 
+## Feature: Robust Lidarr Pending Tracking
+### Under the Hood
+1. **State Persistence**: When a track cannot be immediately provided (e.g. Lidarr search fails or indexer is down), the backend stores a `PendingRequest` struct inside `data/pending_tracks.json`. This tracks the requested `Playlists`, `AddedAt` date, `LastCheckedAt` date, and current `Status` ("pending" or "downloaded").
+2. **Background Daemon**: The Go backend launches a lightweight goroutine (`startPendingChecker`) at startup that wakes up every 24 hours.
+3. **Automatic Retries**: For any track stuck in "pending" status for over 7 days, the daemon forces Lidarr to perform an interactive `AlbumSearch` command. This ensures that missing tracks are actively retried even if RSS sync fails to catch them.
+4. **Verification Safety Net**: When the Lidarr webhook signals a successful download, the track's status becomes "downloaded". Seven days later, the daemon does one final query against the Lidarr API. If `hasFile` is still true (meaning the track wasn't accidentally deleted or moved right after download), the request is permanently purged from `pending_tracks.json` to keep the JSON footprint tiny. If the file is missing, its status gracefully reverts to "pending" to trigger a new search.
+
 ## Feature: Search Engine & API Aggregation
 ### Under the Hood
 The `handleSearch` endpoint acts as a multiplexer:

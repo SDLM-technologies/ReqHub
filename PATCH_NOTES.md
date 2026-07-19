@@ -5,6 +5,11 @@
 - **Conflict Resolution (Flag System)**: The frontend resolves SSE update conflicts by prioritizing offline queued actions (Client Wins).
 
 ### UPDATE
+- **Robust Lidarr Pending Tracking**: Upgraded the handling of tracks requested but not immediately downloaded by Lidarr.
+  - Implemented a `PendingRequest` struct tracking the playlists, addition date, last check date, and current status ("pending", "downloaded").
+  - Added a background daemon (`startPendingChecker`) that runs every 24 hours to automatically audit requests older than 7 days.
+  - Missing tracks automatically trigger a forced Lidarr `AlbumSearch` command to retry downloading in case of indexer failure.
+  - Downloaded tracks are verified one week after download to ensure the file is still successfully retained before being removed from tracking.
 - **Streaming (MusicBubble)**: Added a floating audio player that allows streaming any track directly via `yt-dlp`. Added the `/api/stream` backend handler and integrated `yt-dlp` into the Docker build.
 - **Disk Cleaner**: Added a manual tool to scan Lidarr's music directory and delete any audio files that are no longer referenced in the active playlists. Added the `/api/v1/cleanup` endpoint and a button in the settings menu.
 - **Deleted History Log**: Deleted tracks are now permanently logged in `data/deleted_history.json` for safety auditing.

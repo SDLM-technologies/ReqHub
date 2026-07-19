@@ -15,6 +15,7 @@ The application allows you to search for a specific track, trigger its download 
 - **Offline PWA & Queue:** Install as a Progressive Web App. If you lose connection, requests are queued locally and synchronized automatically when you go back online.
 - **Server-Sent Events (SSE):** The UI reacts to changes on the filesystem without needing a manual refresh.
 - **Automated Addition (Webhook):** As soon as Lidarr finishes downloading, ReqHub captures the file and injects it into the playlists you previously checked.
+- **Robust Fallback & Safety Net:** If a download is delayed or the webhook fails, a background daemon automatically retries Lidarr searches every 7 days and regularly checks if the files are downloaded to ensure no request is ever lost.
 - **Interactive Artist & Album Views:** Click on any artist or album to view their complete discography directly pulled from Lidarr, with local possession statuses.
 - **Built-in Playlist Manager:** Dedicated interface to create, read, modify, and delete your local `.m3u` playlists. Includes Last.fm-powered recommendations and sorting.
 - **MusicBubble Audio Player:** A floating, interactive mini-player that streams remote audio dynamically via `yt-dlp`.
