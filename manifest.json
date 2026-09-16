@@ -6,6 +6,7 @@
   "background_color": "#121212",
   "theme_color": "#1db954",
   "description": "SDLM Request Hub - Music Request and Streaming Interface",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/logo/logo.png",
@@ -15,7 +16,22 @@
     {
       "src": "/logo/logo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/logo/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/logo/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow"
     }
   ]
 }

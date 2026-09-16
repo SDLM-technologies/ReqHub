@@ -147,9 +147,56 @@
             padding: 8px; display: none;
         }
         .delete-icon-btn:hover { background: #b71c1c; }
-        .edit-mode .delete-icon-btn { display: block; }
-        .edit-mode .btn-danger { display: block !important; }
-    </style>
+    .edit-mode .delete-icon-btn { display: block; }
+    .edit-mode .btn-danger { display: block !important; }
+
+    /* PWA Mobile Adjustments */
+    button:active, .icon-btn:active, .track-card:active, .playlist-manager-item:active {
+        transform: scale(0.96);
+        transition: transform 0.1s;
+    }
+    
+    .bottom-nav {
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: var(--bg-card);
+        border-top: 1px solid var(--border);
+        z-index: 1000;
+        justify-content: space-around;
+        padding: 10px 0;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+    }
+    .bottom-nav-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 1.2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 20px;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+    .bottom-nav-btn span {
+        font-size: 0.75rem;
+        font-weight: normal;
+    }
+    .bottom-nav-btn:hover, .bottom-nav-btn.active {
+        color: var(--primary);
+    }
+    
+    @media (max-width: 768px) {
+        .header-actions { display: none; }
+        .bottom-nav { display: flex; }
+        body { padding-bottom: 70px; }
+        #musicBubble { bottom: 80px !important; } /* override possible inline styles */
+    }
+</style>
 </head>
 <body>
 
@@ -1506,5 +1553,21 @@
             });
         }
     </script>
+
+    <!-- Bottom Navigation (Mobile Only) -->
+    <nav class="bottom-nav">
+        <button class="bottom-nav-btn" onclick="switchView('mainView')" id="navHome">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span data-i18n="search_btn">Rechercher</span>
+        </button>
+        <button class="bottom-nav-btn" onclick="openPlaylistsManager()" id="navPlaylists">
+            <i class="fa-solid fa-list"></i>
+            <span data-i18n="manage_playlists">Playlists</span>
+        </button>
+        <button class="bottom-nav-btn" onclick="openSettings()" id="navSettings">
+            <i class="fa-solid fa-gear"></i>
+            <span data-i18n="settings_title">Paramètres</span>
+        </button>
+    </nav>
 </body>
 </html>

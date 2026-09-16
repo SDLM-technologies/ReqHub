@@ -1,3 +1,7 @@
+### UPDATE
+- **PWA Enhancements**: Upgraded PWA compatibility to meet Lighthouse standards. `manifest.json` now includes `screenshots`, `orientation`, and `maskable` icon definitions. `service-worker.js` offline capability improved to robustly fallback to the root `/` page for navigation requests when disconnected, ensuring true offline installation support.
+- **Mobile Adaptive UI**: Added a dedicated bottom navigation bar (`bottom-nav`) specifically for mobile users, surfacing quick access to Search (Home), Playlists, and Settings. The top header buttons are automatically hidden on narrow screens to maximize screen real estate. Added responsive touch-press animations (`transform: scale(0.96)`) to all buttons and interactive cards for a premium tactile feel.
+
 ### NEW CHANGES
 - **PWA Support**: Added `manifest.json` and `service-worker.js` to enable installation as a Progressive Web App and cache static UI assets.
 - **Offline Sync (Queue)**: Implemented offline support using `localStorage`. Track additions are queued when offline and automatically pushed to the backend upon reconnection or every 12 hours. Added `/api/sync` to the backend.
