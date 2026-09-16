@@ -1,9 +1,9 @@
-const CACHE_NAME = 'reqhub-v1';
+const CACHE_NAME = 'reqhub-v2';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo/logo.png'
+  '/logo/biohazard_target.svg'
 ];
 
 self.addEventListener('install', event => {
