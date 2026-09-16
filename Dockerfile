@@ -23,6 +23,9 @@ RUN mkdir -p /app/data
 # Copy the binary and the HTML file
 COPY --from=builder /app/reqhub .
 COPY index.html .
+COPY manifest.json .
+COPY service-worker.js .
+COPY logo/ ./logo/
 
 EXPOSE 8080
 

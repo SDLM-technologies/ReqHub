@@ -1,6 +1,6 @@
 services:
   reqhub:
-    image: ghcr.io/sdlm-technologies/reqhub:latest
+    build: .
     container_name: sdlm-reqhub
     ports:
       - "8080:8080" # Web interface access port
